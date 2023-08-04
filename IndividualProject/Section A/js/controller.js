@@ -6,7 +6,7 @@ let currentId = 0;
 
 
 function init() {
-
+    
     clearAll();
     loadId();
     showTotal();
@@ -57,7 +57,7 @@ function bindEvents() {
     document.querySelector('#remove').addEventListener('click', deleteRecords);
     document.querySelector('#add').addEventListener('click', addRecord);
     document.querySelector('#update').addEventListener('click', updateRecord);
-    document.querySelector('#exchange').addEventListener('change', getExchangerate);
+    document.querySelector('#getExchange').addEventListener('click', getExchangerate);
     document.querySelector('#save').addEventListener('click', saveToLocalStorage);
     document.querySelector('#load').addEventListener('click', loadFromLocalStorage);
 }
@@ -241,7 +241,7 @@ function getExchangerate() {
                 console.log('API response:', data);
                 const quotes = data.quotes;
                 const exchangeRate = quotes["USD" + currency];
-                document.querySelector("#exrate").value = document.querySelector("#price").value + " USD " + " = " + exchangeRate + " " + currency;
+                displayCurrencyConversion(exchangeRate);
             } else {
                 console.error('API request was not successful:', data);
             }
@@ -298,4 +298,19 @@ function loadFromLocalStorage(){
 
 function loadValidId(){
 
+}
+
+
+
+/** Updates & displays the current exchange rate values */
+function displayCurrencyConversion(exchangeRate){
+    
+    const currency = document.getElementById('exchange').value;
+    const priceValue = parseFloat(document.querySelector("#price").value);
+
+    if (isNaN(priceValue)) {
+        document.querySelector("#exrate").value = "0.00 USD = 0.00 " + currency;
+    } else {
+        document.querySelector("#exrate").value = priceValue.toFixed(2) + " USD = " + (priceValue * exchangeRate).toFixed(2) + " " + currency;
+    }
 }
