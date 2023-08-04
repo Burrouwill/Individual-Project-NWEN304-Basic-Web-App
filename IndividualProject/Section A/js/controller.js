@@ -1,22 +1,22 @@
-window.addEventListener("load",init);
+window.addEventListener("load", init);
 
 let editing = false;
 let currentId = 0;
 
 
 
-function init(){
-    
+function init() {
+
     clearAll();
     loadId();
     showTotal();
-    bindEvents();  
+    bindEvents();
 }
 
 /**
  * This function clears the contents of the form except the ID (since ID is auto generated)
  */
-function clearAll(){
+function clearAll() {
     document.querySelector("#id").innerText = currentId;
     document.querySelector("#name").value = "";
     document.querySelector("#desc").value = "";
@@ -30,15 +30,15 @@ let auto = autoGen();
 /**
  * this function automatically sets the value of ID
  */
-function loadId(){
+function loadId() {
     document.querySelector('#id').innerText = auto.next().value;
-    currentId ++;
+    currentId++;
 }
 
 /**
  * this function populates the values of #total, #mark and #unmark ids of the form
  */
-function showTotal(){
+function showTotal() {
     const total = itemOperations.items.length
     const mark = itemOperations.countTotalMarked();
     const unmark = total - mark;
@@ -48,19 +48,19 @@ function showTotal(){
     document.querySelector("#unmark").innerText = unmark;
 }
 
-function bindEvents(){
-    document.querySelector('#remove').addEventListener('click',deleteRecords);
-    document.querySelector('#add').addEventListener('click',addRecord);
-    document.querySelector('#update').addEventListener('click',updateRecord)
-    document.querySelector('#exchange').addEventListener('change',getExchangerate)
+function bindEvents() {
+    document.querySelector('#remove').addEventListener('click', deleteRecords);
+    document.querySelector('#add').addEventListener('click', addRecord);
+    document.querySelector('#update').addEventListener('click', updateRecord)
+    document.querySelector('#exchange').addEventListener('change', getExchangerate)
 }
 
 /**
  * this function deletes the selected record from itemOperations and prints the table using the function printTable
  */
-function deleteRecords(){
+function deleteRecords() {
 
-    if (!editing){
+    if (!editing) {
 
         itemOperations.remove();
         printTable(itemOperations.items);
@@ -71,29 +71,29 @@ function deleteRecords(){
 /**
  * this function adds a new record in itemOperations and then calls printRecord(). showTotal(), loadId() and clearAll()
  */
-function addRecord(){
-    
+function addRecord() {
+
     if (!editing) {
 
-    const newItem = {
-        id: parseInt(document.querySelector("#id").innerText),
-        name: document.querySelector("#name").value,
-        description: document.querySelector('#desc').value,
-        price: parseFloat(document.querySelector("#price").value),
-        color: document.querySelector("#color").value,
-        url: document.querySelector("#url").value,
-        isMarked: false
+        const newItem = {
+            id: parseInt(document.querySelector("#id").innerText),
+            name: document.querySelector("#name").value,
+            description: document.querySelector('#desc').value,
+            price: parseFloat(document.querySelector("#price").value),
+            color: document.querySelector("#color").value,
+            url: document.querySelector("#url").value,
+            isMarked: false
+        }
+
+
+
+        itemOperations.add(newItem);
+        printRecord(newItem);
+        showTotal();
+        loadId();
+        clearAll();
+
     }
-    
-    
-
-    itemOperations.add(newItem);
-    printRecord(newItem);
-    showTotal();
-    loadId();
-    clearAll();
-
- }
 }
 
 /**
@@ -129,13 +129,13 @@ function fillFields(itemObject) {
  * @param {*} id 
  * @returns 
  */
-function createIcon(className,fn, id){
+function createIcon(className, fn, id) {
     // <i class="fas fa-trash"></i>
     // <i class="fas fa-edit"></i>
     var iTag = document.createElement("i");
     iTag.className = className;
-    iTag.addEventListener('click',fn);
-    iTag.setAttribute("data-itemid", id) ;
+    iTag.addEventListener('click', fn);
+    iTag.setAttribute("data-itemid", id);
 
     return iTag;
 }
@@ -143,8 +143,8 @@ function createIcon(className,fn, id){
 /**
  * this function updates the record that is edited and then prints the table using printTable()
  */
-function updateRecord(){
-   
+function updateRecord() {
+
     const id = parseInt(document.querySelector('#id').innerText);
     const updatedItem = {
         id: id,
@@ -161,7 +161,7 @@ function updateRecord(){
         itemOperations.items[itemIndex] = updatedItem;
         printTable(itemOperations.items);
         showTotal();
-        
+
         clearAll();
     }
     editing = false;
@@ -170,46 +170,46 @@ function updateRecord(){
 /**
  * this function toggles the color of the row when its trash button is selected and updates the marked and unmarked fields
  */
-function trash(){
-    
+function trash() {
+
     let id = this.getAttribute('data-itemid');
     itemOperations.markUnMark(id);
     showTotal();
     let tr = this.parentNode.parentNode;
     tr.classList.toggle('alert-danger');
-    console.log("I am Trash ",this.getAttribute('data-itemid'))
+    console.log("I am Trash ", this.getAttribute('data-itemid'))
 }
 
 
 /**
  * this function calls printRecord for each item of items and then calls the showTotal function
  */
-function printTable(items){
-   
+function printTable(items) {
+
     const tbody = document.querySelector("#items");
     tbody.innerHTML = "";
 
-    for (const item of items){
+    for (const item of items) {
         printRecord(item);
     }
 }
 
 
-function printRecord(item){
+function printRecord(item) {
     var tbody = document.querySelector('#items');
     var tr = tbody.insertRow();
     var index = 0;
-    for(let key in item){
-        if(key=='isMarked'){
+    for (let key in item) {
+        if (key == 'isMarked') {
             continue;
         }
         let cell = tr.insertCell(index);
-        cell.innerText = item[key] ;
+        cell.innerText = item[key];
         index++;
     }
     var lastTD = tr.insertCell(index);
-    lastTD.appendChild(createIcon('fas fa-trash mr-2',trash,item.id));
-    lastTD.appendChild(createIcon('fas fa-edit',edit,item.id));
+    lastTD.appendChild(createIcon('fas fa-trash mr-2', trash, item.id));
+    lastTD.appendChild(createIcon('fas fa-edit', edit, item.id));
 }
 
 
@@ -217,35 +217,32 @@ function printRecord(item){
  * this function makes an AJAX call to http://apilayer.net/api/live to fetch and display the exchange rate for the currency selected
  */
 function getExchangerate() {
-   
+
     const apiUrl = "http://apilayer.net/api/live";
-const accessKey = "1b95b7e8f768d45d73e5a4d911e15c52";
-const currency = document.getElementById('exchange').value;
+    const accessKey = "1b95b7e8f768d45d73e5a4d911e15c52";
+    const currency = document.getElementById('exchange').value;
 
-const xhr = new XMLHttpRequest();
-xhr.open("GET", apiUrl + "?access_key=" + accessKey + "&currencies=" + currency, true);
+    const xhr = new XMLHttpRequest();
+    xhr.open("GET", apiUrl + "?access_key=" + accessKey + "&currencies=" + currency, true);
 
-xhr.onload = function () {
-  if (xhr.status >= 200 && xhr.status < 300) {
-    const data = JSON.parse(xhr.responseText);
-    if (data.success) {
-      console.log('API response:', data);
-      const quotes = data.quotes;
-      const exchangeRate = quotes["USD"+currency];
-      document.querySelector("#exrate").value = exchangeRate; 
-    } else {
-      console.error('API request was not successful:', data);
-    }
-  } else {
-    console.error('Error fetching data:', xhr.statusText);
-  }
-};
-
-xhr.onerror = function () {
-  console.error('Request failed');
-};
-
-xhr.send();
-
+    xhr.onload = function () {
+        if (xhr.status >= 200 && xhr.status < 300) {
+            const data = JSON.parse(xhr.responseText);
+            if (data.success) {
+                console.log('API response:', data);
+                const quotes = data.quotes;
+                const exchangeRate = quotes["USD" + currency];
+                document.querySelector("#exrate").value = document.querySelector("#price").value + " USD " + " = " + exchangeRate + " " + currency;
+            } else {
+                console.error('API request was not successful:', data);
+            }
+        } else {
+            console.error('Error fetching data:', xhr.statusText);
+        }
+    };
+    xhr.onerror = function () {
+        console.error('Request failed');
+    };
+    xhr.send();
 }
 
