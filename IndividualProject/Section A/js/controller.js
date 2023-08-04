@@ -82,11 +82,16 @@ function addRecord() {
 
     if (!editing) {
 
+        priceParsed = parseFloat(document.querySelector('#price').value);
+        if (isNaN(priceParsed)){
+            priceParsed = 0;
+        }
+
         const newItem = {
             id: parseInt(document.querySelector("#id").innerText),
             name: document.querySelector("#name").value,
             desc: document.querySelector('#desc').value,
-            price: parseFloat(document.querySelector("#price").value),
+            price: priceParsed,
             color: document.querySelector("#color").value,
             url: document.querySelector("#url").value,
             isMarked: false
@@ -152,12 +157,17 @@ function createIcon(className, fn, id) {
  */
 function updateRecord() {
 
+    priceParsed = parseFloat(document.querySelector('#price').value);
+    if (isNaN(priceParsed)){
+        priceParsed = 0;
+    }
+
     const id = parseInt(document.querySelector('#id').innerText);
     const updatedItem = {
         id: id,
         name: document.querySelector('#name').value,
         desc: document.querySelector('#desc').value,
-        price: parseFloat(document.querySelector('#price').value),
+        price: priceParsed,
         color: document.querySelector("#color").value,
         url: document.querySelector("#url").value,
         isMarked: false
