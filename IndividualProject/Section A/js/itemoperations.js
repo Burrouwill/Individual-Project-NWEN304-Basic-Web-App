@@ -39,4 +39,11 @@ const itemOperations = {
        return this.items.filter(item => item.isMarked).length;
 },
    
+    /** 
+     * Clears the list (To be used when loading items from local storage to prevent duplicate loads.)
+     */ 
+    resetItems(){
+        this.items.length = [];
+}
+
 }

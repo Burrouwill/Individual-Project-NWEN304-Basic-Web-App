@@ -51,8 +51,10 @@ function showTotal() {
 function bindEvents() {
     document.querySelector('#remove').addEventListener('click', deleteRecords);
     document.querySelector('#add').addEventListener('click', addRecord);
-    document.querySelector('#update').addEventListener('click', updateRecord)
-    document.querySelector('#exchange').addEventListener('change', getExchangerate)
+    document.querySelector('#update').addEventListener('click', updateRecord);
+    document.querySelector('#exchange').addEventListener('change', getExchangerate);
+    document.querySelector('#save').addEventListener('click', saveToLocalStorage);
+    document.querySelector('#load').addEventListener('click', loadFromLocalStorage);
 }
 
 /**
@@ -246,3 +248,47 @@ function getExchangerate() {
     xhr.send();
 }
 
+/**
+ * Saves table data to local storage
+ */
+function saveToLocalStorage(){
+    const jsonData = JSON.stringify(itemOperations.items);
+    localStorage.setItem("tableData",jsonData);
+}
+
+/**
+ * Loads data from local storage to display
+ */
+function loadFromLocalStorage(){
+    const jsonData = localStorage.getItem("tableData");
+
+    if (jsonData){
+        /* We have something to load, reset the list to prevent duplicate loads */
+        itemOperations.resetItems();
+        const parsedJson = JSON.parse(jsonData);
+        for (const parsedItem of parsedJson){
+           
+            const newItem = {
+                id: parsedItem.id,
+                name: parsedItem.name,
+                description: parsedItem.description,
+                price: parsedItem.price,
+                color: parsedItem.color,
+                url: parsedItem.url,
+                isMarked: parsedItem.isMarked
+        }
+
+        itemOperations.add(newItem);
+    }
+        clearAll();
+        printTable(itemOperations.items);
+        showTotal();
+        loadId();
+    } else {
+        itemOperations.items = [];
+    }
+}
+
+function loadValidId(){
+
+}
