@@ -1,4 +1,10 @@
 window.addEventListener("load",init);
+
+let editing = false;
+let currentId = 0;
+
+
+
 function init(){
     
     clearAll();
@@ -11,9 +17,12 @@ function init(){
  * This function clears the contents of the form except the ID (since ID is auto generated)
  */
 function clearAll(){
+    document.querySelector("#id").innerText = currentId;
     document.querySelector("#name").value = "";
     document.querySelector("#desc").value = "";
     document.querySelector("#price").value = "";
+    document.querySelector("#color").value = "#000000";
+    document.querySelector("#url").value = "";
 }
 
 let auto = autoGen();
@@ -23,6 +32,7 @@ let auto = autoGen();
  */
 function loadId(){
     document.querySelector('#id').innerText = auto.next().value;
+    currentId ++;
 }
 
 /**
@@ -49,9 +59,13 @@ function bindEvents(){
  * this function deletes the selected record from itemOperations and prints the table using the function printTable
  */
 function deleteRecords(){
-    itemOperations.remove();
-    printTable(itemOperations.items);
-    showTotal();
+
+    if (!editing){
+
+        itemOperations.remove();
+        printTable(itemOperations.items);
+        showTotal();
+    }
 }
 
 /**
@@ -59,15 +73,19 @@ function deleteRecords(){
  */
 function addRecord(){
     
+    if (!editing) {
+
     const newItem = {
         id: parseInt(document.querySelector("#id").innerText),
         name: document.querySelector("#name").value,
         description: document.querySelector('#desc').value,
-        price: parseFloat(document.querySelector('#price').value),
+        price: parseFloat(document.querySelector("#price").value),
+        color: document.querySelector("#color").value,
+        url: document.querySelector("#url").value,
         isMarked: false
-    };
+    }
     
-    console.log("New Item:", newItem); // Log the new item
+    
 
     itemOperations.add(newItem);
     printRecord(newItem);
@@ -75,16 +93,17 @@ function addRecord(){
     loadId();
     clearAll();
 
-    
+ }
 }
 
 /**
  * this function fills (calls fillFields()) the form with the values of the item to edit after searching it in items
  */
-function edit(){
-    const id = this.getAttribute("data-itemid"); 
+function edit() {
+    const id = this.getAttribute("data-itemid");
     const item = itemOperations.search(id)
-    if (item){
+    if (item) {
+        editing = true;
         fillFields(item);
     }
 }
@@ -93,12 +112,15 @@ function edit(){
  * this function fills the form with the details of itemObject
  * @param {*} itemObject 
  */
-function fillFields(itemObject){
+function fillFields(itemObject) {
     document.querySelector("#id").innerText = itemObject.id
     document.querySelector("#name").value = itemObject.name
     document.querySelector("#desc").value = itemObject.desc
     document.querySelector("#price").value = itemObject.price
+    document.querySelector("#color").value = itemObject.color
+    document.querySelector("#url").value = itemObject.url
 }
+
 
 /**
  * /* this function creates icons for edit and trash for each record in the table
@@ -129,6 +151,8 @@ function updateRecord(){
         name: document.querySelector('#name').value,
         description: document.querySelector('#desc').value,
         price: parseFloat(document.querySelector('#price').value),
+        color: document.querySelector("#color").value,
+        url: document.querySelector("#url").value,
         isMarked: false
     };
 
@@ -137,8 +161,10 @@ function updateRecord(){
         itemOperations.items[itemIndex] = updatedItem;
         printTable(itemOperations.items);
         showTotal();
+        
         clearAll();
     }
+    editing = false;
 }
 
 /**
