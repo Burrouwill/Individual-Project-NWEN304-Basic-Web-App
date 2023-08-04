@@ -218,32 +218,34 @@ function printRecord(item){
  */
 function getExchangerate() {
    
-const apiUrl = "http://apilayer.net/api/live";
+    const apiUrl = "http://apilayer.net/api/live";
 const accessKey = "1b95b7e8f768d45d73e5a4d911e15c52";
-const currency =  document.getElementById('exchange').value;
+const currency = document.getElementById('exchange').value;
 
-const requestUrl = `${apiUrl}?access_key=${accessKey}&currencies=${currency}&source=USD&format=1`;
+const xhr = new XMLHttpRequest();
+xhr.open("GET", apiUrl + "?access_key=" + accessKey + "&currencies=" + currency, true);
 
-fetch(requestUrl)
-  .then(response => {
-    if (!response.ok) {
-      throw new Error('Network response was not ok');
-    }
-    return response.json();
-  })
-  .then(data => {
+xhr.onload = function () {
+  if (xhr.status >= 200 && xhr.status < 300) {
+    const data = JSON.parse(xhr.responseText);
     if (data.success) {
       console.log('API response:', data);
-      // Extract and work with the quotes from the API response
       const quotes = data.quotes;
+      const exchangeRate = quotes["USD"+currency];
+      document.querySelector("#exrate").value = exchangeRate; 
     } else {
       console.error('API request was not successful:', data);
     }
-  })
-  .catch(error => {
-    console.error('Error fetching data:', error);
-  });
+  } else {
+    console.error('Error fetching data:', xhr.statusText);
+  }
+};
+
+xhr.onerror = function () {
+  console.error('Request failed');
+};
+
+xhr.send();
 
 }
-
 
