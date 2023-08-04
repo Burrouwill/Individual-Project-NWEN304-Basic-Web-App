@@ -28,11 +28,16 @@ function clearAll() {
 let auto = autoGen();
 
 /**
- * this function automatically sets the value of ID
+ * this function automatically sets the value of ID. Prevents duplicate ID when data modified / loaded.
  */
 function loadId() {
-    document.querySelector('#id').innerText = auto.next().value;
-    currentId++;
+    if (itemOperations.items.length > 0) {
+        const highestId = Math.max(...itemOperations.items.map(item => item.id));
+        currentId = Math.max(currentId, highestId + 1);
+    }
+    const nextId = auto.next().value;
+    currentId = Math.max(currentId, nextId);
+    document.querySelector('#id').innerText = currentId;
 }
 
 /**
@@ -80,7 +85,7 @@ function addRecord() {
         const newItem = {
             id: parseInt(document.querySelector("#id").innerText),
             name: document.querySelector("#name").value,
-            description: document.querySelector('#desc').value,
+            desc: document.querySelector('#desc').value,
             price: parseFloat(document.querySelector("#price").value),
             color: document.querySelector("#color").value,
             url: document.querySelector("#url").value,
@@ -88,7 +93,7 @@ function addRecord() {
         }
 
 
-
+        
         itemOperations.add(newItem);
         printRecord(newItem);
         showTotal();
@@ -151,7 +156,7 @@ function updateRecord() {
     const updatedItem = {
         id: id,
         name: document.querySelector('#name').value,
-        description: document.querySelector('#desc').value,
+        desc: document.querySelector('#desc').value,
         price: parseFloat(document.querySelector('#price').value),
         color: document.querySelector("#color").value,
         url: document.querySelector("#url").value,
@@ -200,16 +205,18 @@ function printTable(items) {
 function printRecord(item) {
     var tbody = document.querySelector('#items');
     var tr = tbody.insertRow();
-    var index = 0;
-    for (let key in item) {
+
+    const keysInOrder = ['id', 'name', 'price', 'desc', 'color', 'url'];
+
+    for (let key of keysInOrder) {
         if (key == 'isMarked') {
             continue;
         }
-        let cell = tr.insertCell(index);
+        let cell = tr.insertCell();
         cell.innerText = item[key];
-        index++;
     }
-    var lastTD = tr.insertCell(index);
+
+    var lastTD = tr.insertCell();
     lastTD.appendChild(createIcon('fas fa-trash mr-2', trash, item.id));
     lastTD.appendChild(createIcon('fas fa-edit', edit, item.id));
 }
@@ -271,7 +278,7 @@ function loadFromLocalStorage(){
             const newItem = {
                 id: parsedItem.id,
                 name: parsedItem.name,
-                description: parsedItem.description,
+                desc: parsedItem.desc,
                 price: parsedItem.price,
                 color: parsedItem.color,
                 url: parsedItem.url,
