@@ -216,7 +216,34 @@ function printRecord(item){
 /**
  * this function makes an AJAX call to http://apilayer.net/api/live to fetch and display the exchange rate for the currency selected
  */
-function getExchangerate(){
+function getExchangerate() {
    
-    
+const apiUrl = "http://apilayer.net/api/live";
+const accessKey = "1b95b7e8f768d45d73e5a4d911e15c52";
+const currency =  document.getElementById('exchange').value;
+
+const requestUrl = `${apiUrl}?access_key=${accessKey}&currencies=${currency}&source=USD&format=1`;
+
+fetch(requestUrl)
+  .then(response => {
+    if (!response.ok) {
+      throw new Error('Network response was not ok');
+    }
+    return response.json();
+  })
+  .then(data => {
+    if (data.success) {
+      console.log('API response:', data);
+      // Extract and work with the quotes from the API response
+      const quotes = data.quotes;
+    } else {
+      console.error('API request was not successful:', data);
+    }
+  })
+  .catch(error => {
+    console.error('Error fetching data:', error);
+  });
+
 }
+
+
