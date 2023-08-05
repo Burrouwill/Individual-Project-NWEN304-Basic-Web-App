@@ -60,6 +60,8 @@ function bindEvents() {
     document.querySelector('#getExchange').addEventListener('click', getExchangerate);
     document.querySelector('#save').addEventListener('click', saveToLocalStorage);
     document.querySelector('#load').addEventListener('click', loadFromLocalStorage);
+    document.querySelector('#saveJSON').addEventListener('click', saveToServerJSON);
+    document.querySelector('#loadJSON').addEventListener('click', loadFromServerJSON);
 }
 
 /**
@@ -311,7 +313,6 @@ function loadValidId(){
 }
 
 
-
 /** Updates & displays the current exchange rate values */
 function displayCurrencyConversion(exchangeRate){
     
@@ -323,4 +324,41 @@ function displayCurrencyConversion(exchangeRate){
     } else {
         document.querySelector("#exrate").value = priceValue.toFixed(2) + " USD = " + (priceValue * exchangeRate).toFixed(2) + " " + currency;
     }
+}
+
+
+// Function to save data to JSON on the server
+function saveToServerJSON() {
+    fetch('/addItem', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(itemOperations.items)
+    })
+    .then(response => {
+        if (response.ok) {
+            console.log('Data saved to server JSON successfully');
+            // You can update UI or perform other actions here
+        } else {
+            console.error('Error saving data to server JSON:', response.statusText);
+        }
+    })
+    .catch(error => {
+        console.error('Error saving data:', error);
+    });
+}
+
+function loadFromServerJSON() {
+    fetch('http://localhost:8080/getData')  // Update with the correct URL
+    .then(response => response.json())
+    .then(data => {
+        // Assuming data is an array of items
+        itemOperations.items = data;
+        // Update UI or perform other actions here
+        console.log('Data loaded from server JSON successfully');
+    })
+    .catch(error => {
+        console.error('Error loading data:', error);
+    });
 }
