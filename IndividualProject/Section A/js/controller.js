@@ -353,9 +353,9 @@ function loadFromServerJSON() {
     fetch('http://localhost:8080/getData')  // Update with the correct URL
     .then(response => response.json())
     .then(data => {
-        // Assuming data is an array of items
+        
         itemOperations.items = data;
-        // Update UI or perform other actions here
+        printTable(itemOperations.items);
         console.log('Data loaded from server JSON successfully');
     })
     .catch(error => {
