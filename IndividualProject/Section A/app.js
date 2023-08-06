@@ -6,7 +6,8 @@ var logger = require('morgan');
 
 var getJSON = require('./routes/getJSON');
 var postJSON = require('./routes/postJSON');
-var postMONGO = require('./routes/postMongo');
+var postMONGO = require('./routes/postMONGO');
+var getMONGO = require('./routes/getMONGO');
 
 var cors = require('cors'); 
 
@@ -19,14 +20,12 @@ const corsOptions = {
   optionSuccessStatus: 200,
 };
 
-
 // Enable CORS
 app.use(cors(corsOptions)); // Use this before defining routes
 
 
-/**
- * MongoDB
- */
+
+// MongoDB
 const mongoose = require('mongoose')
 mongoose.set("strictQuery", false)
 mongoose.
@@ -36,8 +35,6 @@ connect('mongodb+srv://admin:admin@cluster0.oifliqb.mongodb.net/node-api?retryWr
 }).catch((error) => {
     console.log(error)
 })
-
-
 
 
 // view engine setup
@@ -52,7 +49,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', getJSON);
 app.use('/p', postJSON);
-app.use('/m',postMONGO);
+app.use('/m', postMONGO);
+app.use('/g', getMONGO);
 
 
 // catch 404 and forward to error handler
