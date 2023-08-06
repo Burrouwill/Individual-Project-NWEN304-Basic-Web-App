@@ -24,14 +24,13 @@ const corsOptions = {
 app.use(cors(corsOptions)); // Use this before defining routes
 
 
-
 // MongoDB
 const mongoose = require('mongoose')
 mongoose.set("strictQuery", false)
 mongoose.
 connect('mongodb+srv://admin:admin@cluster0.oifliqb.mongodb.net/node-api?retryWrites=true&w=majority')
 .then(() => {
-    console.log('connected to MongoDB')
+    console.log('Connected to MongoDB')
 }).catch((error) => {
     console.log(error)
 })

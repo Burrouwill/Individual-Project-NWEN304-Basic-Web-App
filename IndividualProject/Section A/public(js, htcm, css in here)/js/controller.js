@@ -62,6 +62,8 @@ function bindEvents() {
     document.querySelector('#load').addEventListener('click', loadFromLocalStorage);
     document.querySelector('#saveJSON').addEventListener('click', saveToServerJSON);
     document.querySelector('#loadJSON').addEventListener('click', loadFromServerJSON);
+    document.querySelector('#saveMONGO').addEventListener('click', SaveToMongoDB);
+    document.querySelector('#loadMONGO').addEventListener('click', loadFromMongoDB);
 }
 
 /**
@@ -99,8 +101,6 @@ function addRecord() {
             isMarked: false
         }
 
-
-        
         itemOperations.add(newItem);
         printRecord(newItem);
         showTotal();
@@ -282,7 +282,7 @@ function loadFromLocalStorage(){
     const jsonData = localStorage.getItem("tableData");
 
     if (jsonData){
-        /* We have something to load, reset the list to prevent duplicate loads */
+        // We have something to load, reset the list to prevent duplicate loads 
         itemOperations.resetItems();
         const parsedJson = JSON.parse(jsonData);
         for (const parsedItem of parsedJson){
@@ -313,7 +313,9 @@ function loadValidId(){
 }
 
 
-/** Updates & displays the current exchange rate values */
+/** 
+ * Updates & displays the current exchange rate values 
+ */
 function displayCurrencyConversion(exchangeRate){
     
     const currency = document.getElementById('exchange').value;
@@ -327,7 +329,9 @@ function displayCurrencyConversion(exchangeRate){
 }
 
 
-// Function to save data to JSON on the server
+/**
+ * Function to save data to JSON on the server via a POST request
+ */
 function saveToServerJSON() {
     fetch('http://localhost:3000/p/updateJSON', {
         method: 'POST',
@@ -350,7 +354,7 @@ function saveToServerJSON() {
 
 
 /**
- * Loads the data saved to the JSON database file
+ * Loads the data saved to the JSON database file via GET request
  */
 function loadFromServerJSON() {
     fetch('http://localhost:3000/getJSON') 
@@ -363,5 +367,46 @@ function loadFromServerJSON() {
     })
     .catch(error => {
         console.error('Error loading data:', error);
+    });
+}
+
+/**
+ * Saves data to MongoDB server via a POST request
+ */
+function SaveToMongoDB() {
+    fetch('http://localhost:3000/m/postMONGO', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(itemOperations.items)
+    })
+    .then(response => {
+        if (response.ok) {
+            console.log('Data saved to Mongo DB successfully');
+        } else {
+            console.error('Error updating data on MongoDB server:', response.statusText);
+        }
+    })
+    .catch(error => {
+        console.error('Error updating MongoDB data:', error);
+    });
+}
+
+
+/**
+ * Loads the data saved to MongoDB server via a GET request
+ */
+function loadFromMongoDB() {
+    fetch('http://localhost:3000/g/getMONGO') 
+    .then(response => response.json())
+    .then(data => {
+        console.log(data);
+        itemOperations.items = data;
+        printTable(itemOperations.items);
+        console.log('Data loaded from MongoDB server successfully');
+    })
+    .catch(error => {
+        console.error('Error loading MongoDB data:', error);
     });
 }
