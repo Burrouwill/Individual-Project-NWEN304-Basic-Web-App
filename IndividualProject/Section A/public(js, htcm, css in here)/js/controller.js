@@ -339,7 +339,6 @@ function saveToServerJSON() {
     .then(response => {
         if (response.ok) {
             console.log('Data updated on server successfully');
-            // You can update UI or perform other actions here
         } else {
             console.error('Error updating data on server:', response.statusText);
         }

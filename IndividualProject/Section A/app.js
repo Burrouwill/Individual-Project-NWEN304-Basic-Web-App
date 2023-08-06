@@ -6,6 +6,7 @@ var logger = require('morgan');
 
 var getJSON = require('./routes/getJSON');
 var postJSON = require('./routes/postJSON');
+var postMONGO = require('./routes/postMongo');
 
 var cors = require('cors'); 
 
@@ -26,31 +27,15 @@ app.use(cors(corsOptions)); // Use this before defining routes
 /**
  * MongoDB
  */
-const { MongoClient, ServerApiVersion } = require('mongodb');
-const { default: mongoose } = require('mongoose');
-const uri = "mongodb+srv://admin:admin@cluster0.oifliqb.mongodb.net/node-api?retryWrites=true&w=majority";
-// Create a MongoClient with a MongoClientOptions object to set the Stable API version
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true,
-  }
-});
-
-async function run() {
-  try {
-    // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
-    console.log("Pinged your deployment. You successfully connected to MongoDB!");
-  } finally {
-    // Ensures that the client will close when you finish/error
-    await client.close();
-  }
-}
-run().catch(console.dir);
+const mongoose = require('mongoose')
+mongoose.set("strictQuery", false)
+mongoose.
+connect('mongodb+srv://admin:admin@cluster0.oifliqb.mongodb.net/node-api?retryWrites=true&w=majority')
+.then(() => {
+    console.log('connected to MongoDB')
+}).catch((error) => {
+    console.log(error)
+})
 
 
 
@@ -67,6 +52,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 app.use('/', getJSON);
 app.use('/p', postJSON);
+app.use('/m',postMONGO);
 
 
 // catch 404 and forward to error handler
