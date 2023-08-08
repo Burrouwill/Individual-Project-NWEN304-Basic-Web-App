@@ -1,0 +1,8 @@
+cluster\management\LeaderElection.class
+cluster\management\LeaderElection$1.class
+cluster\management\ServiceRegistry$1.class
+cluster\management\ServiceRegistry.class
+cluster\management\ZookeeperClient$1.class
+cluster\management\NetworkUtils.class
+Application.class
+cluster\management\ZookeeperClient.class

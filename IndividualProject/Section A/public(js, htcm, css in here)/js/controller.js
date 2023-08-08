@@ -6,7 +6,7 @@ let currentId = 0;
 
 
 function init() {
-    
+
     clearAll();
     loadId();
     showTotal();
@@ -54,16 +54,20 @@ function showTotal() {
 }
 
 function bindEvents() {
+    // Basic Core 
     document.querySelector('#remove').addEventListener('click', deleteRecords);
     document.querySelector('#add').addEventListener('click', addRecord);
     document.querySelector('#update').addEventListener('click', updateRecord);
     document.querySelector('#getExchange').addEventListener('click', getExchangerate);
     document.querySelector('#save').addEventListener('click', saveToLocalStorage);
     document.querySelector('#load').addEventListener('click', loadFromLocalStorage);
+    // JSON Completion
     document.querySelector('#saveJSON').addEventListener('click', saveToServerJSON);
     document.querySelector('#loadJSON').addEventListener('click', loadFromServerJSON);
+    // Mongo Challenge
     document.querySelector('#saveMONGO').addEventListener('click', SaveToMongoDB);
     document.querySelector('#loadMONGO').addEventListener('click', loadFromMongoDB);
+    document.querySelector('#deleteMONGO').addEventListener('click', DeleteFromMongoDB);
 }
 
 /**
@@ -87,7 +91,7 @@ function addRecord() {
     if (!editing) {
 
         priceParsed = parseFloat(document.querySelector('#price').value);
-        if (isNaN(priceParsed)){
+        if (isNaN(priceParsed)) {
             priceParsed = 0;
         }
 
@@ -160,7 +164,7 @@ function createIcon(className, fn, id) {
 function updateRecord() {
 
     priceParsed = parseFloat(document.querySelector('#price').value);
-    if (isNaN(priceParsed)){
+    if (isNaN(priceParsed)) {
         priceParsed = 0;
     }
 
@@ -270,23 +274,23 @@ function getExchangerate() {
 /**
  * Saves table data to local storage
  */
-function saveToLocalStorage(){
+function saveToLocalStorage() {
     const jsonData = JSON.stringify(itemOperations.items);
-    localStorage.setItem("tableData",jsonData);
+    localStorage.setItem("tableData", jsonData);
 }
 
 /**
  * Loads data from local storage to display
  */
-function loadFromLocalStorage(){
+function loadFromLocalStorage() {
     const jsonData = localStorage.getItem("tableData");
 
-    if (jsonData){
+    if (jsonData) {
         // We have something to load, reset the list to prevent duplicate loads 
         itemOperations.resetItems();
         const parsedJson = JSON.parse(jsonData);
-        for (const parsedItem of parsedJson){
-           
+        for (const parsedItem of parsedJson) {
+
             const newItem = {
                 id: parsedItem.id,
                 name: parsedItem.name,
@@ -295,10 +299,10 @@ function loadFromLocalStorage(){
                 color: parsedItem.color,
                 url: parsedItem.url,
                 isMarked: parsedItem.isMarked
-        }
+            }
 
-        itemOperations.add(newItem);
-    }
+            itemOperations.add(newItem);
+        }
         clearAll();
         printTable(itemOperations.items);
         showTotal();
@@ -308,7 +312,7 @@ function loadFromLocalStorage(){
     }
 }
 
-function loadValidId(){
+function loadValidId() {
 
 }
 
@@ -316,8 +320,8 @@ function loadValidId(){
 /** 
  * Updates & displays the current exchange rate values 
  */
-function displayCurrencyConversion(exchangeRate){
-    
+function displayCurrencyConversion(exchangeRate) {
+
     const currency = document.getElementById('exchange').value;
     const priceValue = parseFloat(document.querySelector("#price").value);
 
@@ -340,16 +344,16 @@ function saveToServerJSON() {
         },
         body: JSON.stringify(itemOperations.items)
     })
-    .then(response => {
-        if (response.ok) {
-            console.log('Data updated on server successfully');
-        } else {
-            console.error('Error updating data on server:', response.statusText);
-        }
-    })
-    .catch(error => {
-        console.error('Error updating data:', error);
-    });
+        .then(response => {
+            if (response.ok) {
+                console.log('Data updated on server successfully');
+            } else {
+                console.error('Error updating data on server:', response.statusText);
+            }
+        })
+        .catch(error => {
+            console.error('Error updating data:', error);
+        });
 }
 
 
@@ -357,17 +361,17 @@ function saveToServerJSON() {
  * Loads the data saved to the JSON database file via GET request
  */
 function loadFromServerJSON() {
-    fetch('http://localhost:3000/getJSON') 
-    .then(response => response.json())
-    .then(data => {
-        console.log(data);
-        itemOperations.items = data;
-        printTable(itemOperations.items);
-        console.log('Data loaded from server JSON successfully');
-    })
-    .catch(error => {
-        console.error('Error loading data:', error);
-    });
+    fetch('http://localhost:3000/getJSON')
+        .then(response => response.json())
+        .then(data => {
+            console.log(data);
+            itemOperations.items = data;
+            printTable(itemOperations.items);
+            console.log('Data loaded from server JSON successfully');
+        })
+        .catch(error => {
+            console.error('Error loading data:', error);
+        });
 }
 
 /**
@@ -381,16 +385,16 @@ function SaveToMongoDB() {
         },
         body: JSON.stringify(itemOperations.items)
     })
-    .then(response => {
-        if (response.ok) {
-            console.log('Data saved to Mongo DB successfully');
-        } else {
-            console.error('Error updating data on MongoDB server:', response.statusText);
-        }
-    })
-    .catch(error => {
-        console.error('Error updating MongoDB data:', error);
-    });
+        .then(response => {
+            if (response.ok) {
+                console.log('Data saved to Mongo DB successfully');
+            } else {
+                console.error('Error updating data on MongoDB server:', response.statusText);
+            }
+        })
+        .catch(error => {
+            console.error('Error updating MongoDB data:', error);
+        });
 }
 
 
@@ -398,15 +402,51 @@ function SaveToMongoDB() {
  * Loads the data saved to MongoDB server via a GET request
  */
 function loadFromMongoDB() {
-    fetch('http://localhost:3000/g/getMONGO') 
-    .then(response => response.json())
-    .then(data => {
-        console.log(data);
-        itemOperations.items = data;
-        printTable(itemOperations.items);
-        console.log('Data loaded from MongoDB server successfully');
+    fetch('http://localhost:3000/g/getMONGO')
+        .then(response => response.json())
+        .then(data => {
+            console.log(data);
+            itemOperations.items = data;
+            printTable(itemOperations.items);
+            console.log('Data loaded from MongoDB server successfully');
+        })
+        .catch(error => {
+            console.error('Error loading MongoDB data:', error);
+        });
+}
+
+/**
+ * Loads the data saved to MongoDB server via a GET request
+ */
+function DeleteFromMongoDB() {
+    fetch('http://localhost:3000/d/deleteMONGO/:id', {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(getMarkedItems())
     })
-    .catch(error => {
-        console.error('Error loading MongoDB data:', error);
-    });
+        .then(response => {
+            if (response.ok) {
+                console.log('Data deleted from Mongo DB successfully');
+            } else {
+                console.error('Error deleting data from MongoDB server:', response.statusText);
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting data from MongoDB:', error);
+        });
+}
+
+/**
+ * Finds and returns all marked items
+ */
+function getMarkedItems() {
+    const markedItems = [];
+    for (const item of itemOperations.items) {
+        if (item.isMarked) {
+            markedItems.push(item);
+        }
+    }
+    return markedItems;
 }
