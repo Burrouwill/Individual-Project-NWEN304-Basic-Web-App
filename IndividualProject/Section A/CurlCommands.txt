@@ -1,0 +1,26 @@
+# GET 
+
+curl http://localhost:3000/g/getMONGO
+
+# POST
+
+$uri = "http://localhost:3000/m/postMONGO"
+$headers = @{"Content-Type" = "application/json"}
+$body = '{
+  "id": 99,
+  "name": "Sample Item",
+  "price": 10.99,
+  "desc": "Sample description",
+  "color": "#FF5733",
+  "url": "https://example.com/image.jpg",
+  "isMarked": false
+}'
+
+curl -Uri $uri -Method Post -Headers $headers -Body $body
+
+
+# DELETE
+
+$uri = "http://localhost:3000/d/deleteMONGO/99"
+Invoke-RestMethod -Uri $uri -Method Delete
+

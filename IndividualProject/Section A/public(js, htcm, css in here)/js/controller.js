@@ -419,7 +419,7 @@ function loadFromMongoDB() {
  * Loads the data saved to MongoDB server via a GET request
  */
 function DeleteFromMongoDB() {
-    fetch('http://localhost:3000/d/deleteMONGO/:id', {
+    fetch('http://localhost:3000/d/deleteMONGO/id'+id, {
         method: 'DELETE',
         headers: {
             'Content-Type': 'application/json'
