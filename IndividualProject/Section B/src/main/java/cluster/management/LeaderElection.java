@@ -5,6 +5,7 @@ import org.apache.zookeeper.data.Stat;
 
 import java.util.List;
 
+
 public class LeaderElection implements Watcher {
     private static final String ELECTION_ZNODE_NAME = "/leader_election";
     private static final String ZNODE_PREFIX = "/guide-n_";
@@ -18,24 +19,18 @@ public class LeaderElection implements Watcher {
         this.serviceRegistry = serviceRegistry;
         this.currentServerPort = port;
 
-        // Invoke this method to create a persistant znode /leader_election in zookeeper
-        // if it doesn't exist
-        if (zooKeeperClient.getZookeeper() == null){
-            createElectionRegistryPZnode();
-        }
-    }
+        createElectionRegistryPZnode();
 
+    }
 
 
 
     // -------- TODO -------
     public void registerCandidacyForLeaderElection() throws KeeperException, InterruptedException {
-        // Create a ephermeral sequential node under election znode and assign it to the
-        // string currentZnodeName
         String znodePath = zooKeeperClient.createEphemeralSequentialNode(ELECTION_ZNODE_NAME + ZNODE_PREFIX, null);
         currentZnodeName = znodePath.replace(ELECTION_ZNODE_NAME + "/", "");
-        participateInLeaderElection();
 
+        participateInLeaderElection();
     }
     // --------END TODO ------
 
@@ -48,10 +43,8 @@ public class LeaderElection implements Watcher {
         int smallestSequenceNumber = Integer.parseInt(smallestChild.substring(smallestChild.lastIndexOf('_') + 1));
 
         if (currentSequenceNumber == smallestSequenceNumber) {
-            System.out.println("I am the leader");
             updateServiceRegistry(true);
         } else {
-            System.out.println("I am a worker");
             updateServiceRegistry(false);
         }
     }
@@ -71,8 +64,6 @@ public class LeaderElection implements Watcher {
         try {
             zooKeeperClient.createPersistantNode(ELECTION_ZNODE_NAME, null);
         } catch (KeeperException | InterruptedException e) {
-            e.printStackTrace();
-            System.out.println("Failed To Create Election Registry");
         }
     }
     // --------END TODO ------
@@ -81,7 +72,8 @@ public class LeaderElection implements Watcher {
     public void onElectedToBeLeader() {
         System.out.println("I am the leader");
         serviceRegistry.registerForUpdates();
-        serviceRegistry.unregisterFromCluster(); // Handle fault tolerance
+        System.out.println("Updated point of contact: http://host.docker.internal:" + currentServerPort);
+        serviceRegistry.unregisterFromCluster();
     }
     // --------END TODO ------
 
@@ -100,6 +92,7 @@ public class LeaderElection implements Watcher {
             serviceRegistry.registerToCluster(currentServerPort);
         } catch (KeeperException | InterruptedException e) {
             e.printStackTrace();
+            System.out.println("Failed to register worker to cluster.");
         }
 
     }
@@ -107,21 +100,12 @@ public class LeaderElection implements Watcher {
 
     @Override
     public void process(WatchedEvent event) {
-        // -------- TODO ------
-        switch (event.getType()) {
-            case NodeDeleted:
-                if (event.getPath().equals(ELECTION_ZNODE_NAME + "/" + currentZnodeName)) {
-                    System.out.println("Leader node " + currentZnodeName + " has failed. Re-running leader election.");
-                    try {
-                        participateInLeaderElection();
-                    } catch (KeeperException | InterruptedException e) {
-                        e.printStackTrace();
-                    }
-                }
-                break;
-            default:
-                break;
+        if (event.getType() == Event.EventType.NodeDeleted) {
+            // The leader znode has been deleted, a new leader is elected
+            serviceRegistry.registerForUpdates();
+        } else if (event.getType() == Event.EventType.NodeChildrenChanged) {
+            // The worker nodes have changed, so call the method to register for updates
+            serviceRegistry.registerForUpdates();
         }
-        // ------- END TODO ------
     }
 }

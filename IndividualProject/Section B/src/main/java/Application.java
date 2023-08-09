@@ -14,16 +14,12 @@ public class Application {
         try {
             int currentServerPort = args.length == 1 ? Integer.parseInt(args[0]) : DEFAULT_PORT;
 
-            // Create zookeeper client and connect to zookeeper server
             ZookeeperClient zooKeeperClient = new ZookeeperClient(ZOOKEEPER_ADDRESS, SESSION_TIMEOUT);
 
-            // Initiate service registry in ZooKeeper
             ServiceRegistry serviceRegistry = new ServiceRegistry(zooKeeperClient);
 
-            // Initiate leader election in ZooKeeper
             LeaderElection leaderElection = new LeaderElection(zooKeeperClient, serviceRegistry, currentServerPort);
 
-            // Initiate leader election process
             leaderElection.registerCandidacyForLeaderElection();
 
             zooKeeperClient.run();

@@ -11,7 +11,7 @@ import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
 
-public class ZookeeperClient implements Watcher{
+public class ZookeeperClient implements Watcher {
     private final ZooKeeper zookeeper;
 
     public ZookeeperClient(String connectionString, int sessionTimeout) throws IOException {
@@ -28,16 +28,16 @@ public class ZookeeperClient implements Watcher{
     }
 
     // ------- TODO --------
-    public List<String> getSortedChildren(String parentPath) throws KeeperException, InterruptedException{
-        List<String> children = zookeeper.getChildren(parentPath, false);
+    public List<String> getSortedChildren(String parentPath) throws KeeperException, InterruptedException {
+        List<String> children = zookeeper.getChildren(parentPath, true);
         Collections.sort(children);
         return children;
     }
     // ------ END TODO -------
-   
+
 
     // ------- TODO --------
-    public String getPredecessorNode(String parentZnodeName, String currentZnodeName) throws KeeperException, InterruptedException{
+    public String getPredecessorNode(String parentZnodeName, String currentZnodeName) throws KeeperException, InterruptedException {
         List<String> children = getSortedChildren(parentZnodeName);
         int index = children.indexOf(currentZnodeName);
         if (index > 0) {
@@ -47,9 +47,9 @@ public class ZookeeperClient implements Watcher{
     }
     // ------ END TODO -------
 
-    
+
     // ------- TODO --------
-    public boolean isLeaderNode(String parentZnodeName, String currentZnodeName) throws KeeperException, InterruptedException{
+    public boolean isLeaderNode(String parentZnodeName, String currentZnodeName) throws KeeperException, InterruptedException {
         List<String> children = getSortedChildren(parentZnodeName);
         return !children.isEmpty() && (parentZnodeName + "/" + children.get(0)).equals(currentZnodeName); // Does this condition actually do what we want it to?
     }
@@ -70,19 +70,23 @@ public class ZookeeperClient implements Watcher{
     }
 
     @Override
-        public void process(WatchedEvent event) {
-            switch (event.getType()) {
-                case None:
-                    if (event.getState() == Event.KeeperState.SyncConnected) {
-                        System.out.println("Successfully connected to Zookeeper");
-                    } else {
-                        synchronized (getZookeeper()) {
-                            System.out.println("Disconnected from Zookeeper event");
-                            getZookeeper().notifyAll();
-                        }
+    public void process(WatchedEvent event) {
+        switch (event.getType()) {
+            case None:
+                if (event.getState() == Event.KeeperState.SyncConnected) {
+                    System.out.println("Successfully connected to Zookeeper");
+                } else {
+                    synchronized (getZookeeper()) {
+                        System.out.println("Disconnected from Zookeeper event");
+                        getZookeeper().notifyAll();
                     }
-                default:
-                    break;
-            }
+                }
+                break; // Add a break statement here
+            case NodeDeleted:
+                System.out.println("Node deleted");
+                break; // Add a break statement here
+            default:
+                break;
         }
+    }
 }

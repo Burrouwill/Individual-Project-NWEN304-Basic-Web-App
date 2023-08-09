@@ -13,50 +13,65 @@ public class ServiceRegistry implements Watcher {
 
     public ServiceRegistry(ZookeeperClient zooKeeperClient) {
         this.zooKeeperClient = zooKeeperClient;
+        this.createServiceRegistryPZnode();
 
-        if (zooKeeperClient.getZookeeper() == null){
-            createServiceRegistryPZnode();
+        // Set a watcher on the service registry znode
+        try {
+            zooKeeperClient.getZookeeper().getChildren(REGISTRY_ZNODE, this);
+        } catch (KeeperException | InterruptedException e) {
+            e.printStackTrace();
         }
-
     }
 
     // -------- TODO -------
     public void registerToCluster(int port) throws KeeperException, InterruptedException {
-
-        // Register as a worker in /service_registry znode by adding IP address and Port
-        // number
-
+        // Register as a worker in /service_registry znode by adding IP address and Port number
         String ipAndPort = getIpAddress() + ":" + port;
         String znodePath = zooKeeperClient.createEphemeralSequentialNode(REGISTRY_ZNODE + "/", ipAndPort.getBytes());
         currentZnode = znodePath.replace(REGISTRY_ZNODE + "/", "");
         System.out.println("Registered as worker: " + currentZnode);
 
+        // Set a watcher on the created worker znode
+        zooKeeperClient.getZookeeper().exists(znodePath, this);
 
-        return;
     }
     // --------END TODO ------
 
     // -------- TODO -------
     public void registerForUpdates() {
-
-        // Get and print the list of all the workers
         try {
             List<String> workers = zooKeeperClient.getSortedChildren(REGISTRY_ZNODE);
-            System.out.println("List of worker nodes: " + workers);
+
+            System.out.println("The cluster addresses are:");
+
+            for (String worker : workers) {
+                String znodePath = REGISTRY_ZNODE + "/" + worker;
+                byte[] data = zooKeeperClient.getZookeeper().getData(znodePath, false, null);
+                String workerData = new String(data);
+
+                // Assuming workerData is in the format "IP:Port", split and print port
+                String[] parts = workerData.split(":");
+                if (parts.length == 2) {
+                    String port = parts[1];
+                    System.out.println("Worker: " + worker + ", Port: " + port);
+                } else {
+                    System.out.println("Worker: " + worker + ", Invalid address format: " + workerData);
+                }
+            }
+
         } catch (KeeperException | InterruptedException e) {
             e.printStackTrace();
         }
     }
+
     // --------END TODO ------
 
     // -------- TODO -------
     private void createServiceRegistryPZnode() {
-
         // Create a persistant znode /service_registry in zookeeper if it doesn't exist
         try {
             zooKeeperClient.createPersistantNode(REGISTRY_ZNODE, null);
         } catch (KeeperException | InterruptedException e) {
-            e.printStackTrace();
         }
     }
     // --------END TODO ------
@@ -73,23 +88,18 @@ public class ServiceRegistry implements Watcher {
             e.printStackTrace();
         }
     }
-    // --------END TODO ------
 
-    // -------- TODO -------
+
+
     @Override
     public void process(WatchedEvent event) {
+        if (event.getType() == Event.EventType.NodeDeleted) {
 
-        // In the case of node addition or deletion retrieve the updated list of workers
-        switch (event.getType()) {
-            case NodeChildrenChanged:
-                if (event.getPath().equals(REGISTRY_ZNODE)) {
-                    registerForUpdates();
-                }
-                break;
-            default:
-                // Handle other event types if needed
-                break;
+            registerForUpdates();
+        } else if (event.getType() == Event.EventType.NodeChildrenChanged) {
+            // The worker nodes have changed, so call the method to register for updates
+            registerForUpdates();
         }
     }
-    // --------END TODO ------
+
 }
