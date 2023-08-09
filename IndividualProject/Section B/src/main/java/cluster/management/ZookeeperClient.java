@@ -29,7 +29,7 @@ public class ZookeeperClient implements Watcher {
 
     // ------- TODO --------
     public List<String> getSortedChildren(String parentPath) throws KeeperException, InterruptedException {
-        List<String> children = zookeeper.getChildren(parentPath, true);
+        List<String> children = zookeeper.getChildren(parentPath, false);
         Collections.sort(children);
         return children;
     }
@@ -81,11 +81,6 @@ public class ZookeeperClient implements Watcher {
                         getZookeeper().notifyAll();
                     }
                 }
-                break; // Add a break statement here
-            case NodeDeleted:
-                System.out.println("Node deleted");
-                break; // Add a break statement here
-            default:
                 break;
         }
     }

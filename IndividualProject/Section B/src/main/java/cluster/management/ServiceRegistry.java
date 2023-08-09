@@ -27,6 +27,7 @@ public class ServiceRegistry implements Watcher {
     public void registerToCluster(int port) throws KeeperException, InterruptedException {
         // Register as a worker in /service_registry znode by adding IP address and Port number
         String ipAndPort = getIpAddress() + ":" + port;
+
         String znodePath = zooKeeperClient.createEphemeralSequentialNode(REGISTRY_ZNODE + "/", ipAndPort.getBytes());
         currentZnode = znodePath.replace(REGISTRY_ZNODE + "/", "");
         System.out.println("Registered as worker: " + currentZnode);
@@ -89,17 +90,27 @@ public class ServiceRegistry implements Watcher {
         }
     }
 
+    public boolean isLeader() {
+        try {
+            // Get the list of workers
+            List<String> workers = zooKeeperClient.getSortedChildren(REGISTRY_ZNODE);
 
+            // Get the smallest child node (leader)
+            String smallestChild = workers.get(0);
 
-    @Override
-    public void process(WatchedEvent event) {
-        if (event.getType() == Event.EventType.NodeDeleted) {
-
-            registerForUpdates();
-        } else if (event.getType() == Event.EventType.NodeChildrenChanged) {
-            // The worker nodes have changed, so call the method to register for updates
-            registerForUpdates();
+            // Check if the smallest child node is the current server's node
+            return smallestChild.equals(currentZnode);
+        } catch (KeeperException | InterruptedException e) {
+            e.printStackTrace();
+            return false; // Return false in case of any exception
         }
     }
 
+    @Override
+    public void process(WatchedEvent event) {
+        if (event.getType() == Event.EventType.NodeChildrenChanged && isLeader()) {
+            registerForUpdates();
+        }
+    }
 }
+

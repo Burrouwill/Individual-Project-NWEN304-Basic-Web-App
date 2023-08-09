@@ -5,9 +5,12 @@ import org.apache.zookeeper.data.Stat;
 
 import java.util.List;
 
+import static cluster.management.NetworkUtils.getIpAddress;
+
 
 public class LeaderElection implements Watcher {
     private static final String ELECTION_ZNODE_NAME = "/leader_election";
+    private static final String REGISTRY_ZNODE = "/service_registry";
     private static final String ZNODE_PREFIX = "/guide-n_";
     private String currentZnodeName;
     private final ZookeeperClient zooKeeperClient;
@@ -23,34 +26,28 @@ public class LeaderElection implements Watcher {
 
     }
 
-
-
     // -------- TODO -------
     public void registerCandidacyForLeaderElection() throws KeeperException, InterruptedException {
-        String znodePath = zooKeeperClient.createEphemeralSequentialNode(ELECTION_ZNODE_NAME + ZNODE_PREFIX, null);
-        currentZnodeName = znodePath.replace(ELECTION_ZNODE_NAME + "/", "");
-
         participateInLeaderElection();
     }
     // --------END TODO ------
 
     // -------- TODO -------
     private void participateInLeaderElection() throws KeeperException, InterruptedException {
+
+
         List<String> children = zooKeeperClient.getSortedChildren(ELECTION_ZNODE_NAME);
-        String smallestChild = children.get(0);
 
-        int currentSequenceNumber = Integer.parseInt(currentZnodeName.substring(currentZnodeName.lastIndexOf('_') + 1));
-        int smallestSequenceNumber = Integer.parseInt(smallestChild.substring(smallestChild.lastIndexOf('_') + 1));
-
-        if (currentSequenceNumber == smallestSequenceNumber) {
-            updateServiceRegistry(true);
+        // If its the first node --> Leader
+        if (children.isEmpty()){
+            onElectedToBeLeader();
         } else {
             updateServiceRegistry(false);
         }
     }
     // --------END TODO ------
 
-    private void updateServiceRegistry(boolean isLeader) {
+    private void updateServiceRegistry(boolean isLeader) throws InterruptedException, KeeperException {
         if (isLeader) {
             onElectedToBeLeader();
         } else {
@@ -69,9 +66,11 @@ public class LeaderElection implements Watcher {
     // --------END TODO ------
 
     // -------- TODO -------
-    public void onElectedToBeLeader() {
+    public void onElectedToBeLeader() throws InterruptedException, KeeperException {
+        String znodePath = zooKeeperClient.createEphemeralSequentialNode(ELECTION_ZNODE_NAME + ZNODE_PREFIX, null);
+        currentZnodeName = znodePath.replace(ELECTION_ZNODE_NAME + "/", "");
+
         System.out.println("I am the leader");
-        serviceRegistry.registerForUpdates();
         System.out.println("Updated point of contact: http://host.docker.internal:" + currentServerPort);
         serviceRegistry.unregisterFromCluster();
     }
