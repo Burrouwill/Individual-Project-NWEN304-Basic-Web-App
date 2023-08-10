@@ -8,7 +8,8 @@ var getJSON = require('./routes/getJSON');
 var postJSON = require('./routes/postJSON');
 var postMONGO = require('./routes/postMONGO');
 var getMONGO = require('./routes/getMONGO');
-var deleteMONGO = require('./routes/deleteMONGO')
+var deleteMONGO = require('./routes/deleteMONGO');
+var putMONGO = require('./routes/putMONGO');
 
 var cors = require('cors'); 
 
@@ -52,6 +53,7 @@ app.use('/p', postJSON);
 app.use('/m', postMONGO);
 app.use('/g', getMONGO);
 app.use('/d', deleteMONGO);
+app.use('/u', putMONGO);
 
 
 // catch 404 and forward to error handler

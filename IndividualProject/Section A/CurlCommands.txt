@@ -2,6 +2,8 @@
 
 curl http://localhost:3000/g/getMONGO
 
+
+
 # POST
 
 $uri = "http://localhost:3000/m/postMONGO"
@@ -15,12 +17,36 @@ $body = '{
   "url": "https://example.com/image.jpg",
   "isMarked": false
 }'
-
 curl -Uri $uri -Method Post -Headers $headers -Body $body
+
+
+
+# PUT
+
+$uri = "http://localhost:3000/u/putMONGO/99"
+
+$headers = @{
+    "Content-Type" = "application/json"
+}
+
+$body = @{
+    "name" = "Updated Item Name"
+    "price" = 19.99
+    "desc" = "Updated description"
+    "color" = "#FF5733"
+    "url" = "https://example.com/updated-url"
+    "isMarked" = $true
+} | ConvertTo-Json
+
+$response = Invoke-RestMethod -Uri $uri -Headers $headers -Method Put -Body $body
+$response
+
+
 
 
 # DELETE
 
 $uri = "http://localhost:3000/d/deleteMONGO/99"
 Invoke-RestMethod -Uri $uri -Method Delete
+
 

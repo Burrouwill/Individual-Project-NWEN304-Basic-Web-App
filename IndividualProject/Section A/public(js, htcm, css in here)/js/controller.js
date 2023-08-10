@@ -67,7 +67,6 @@ function bindEvents() {
     // Mongo Challenge
     document.querySelector('#saveMONGO').addEventListener('click', SaveToMongoDB);
     document.querySelector('#loadMONGO').addEventListener('click', loadFromMongoDB);
-    document.querySelector('#deleteMONGO').addEventListener('click', DeleteFromMongoDB);
 }
 
 /**
@@ -415,28 +414,6 @@ function loadFromMongoDB() {
         });
 }
 
-/**
- * Loads the data saved to MongoDB server via a GET request
- */
-function DeleteFromMongoDB() {
-    fetch('http://localhost:3000/d/deleteMONGO/id'+id, {
-        method: 'DELETE',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(getMarkedItems())
-    })
-        .then(response => {
-            if (response.ok) {
-                console.log('Data deleted from Mongo DB successfully');
-            } else {
-                console.error('Error deleting data from MongoDB server:', response.statusText);
-            }
-        })
-        .catch(error => {
-            console.error('Error deleting data from MongoDB:', error);
-        });
-}
 
 /**
  * Finds and returns all marked items
