@@ -32,7 +32,11 @@ public class NodeRegistry implements Watcher {
         if (!znodes.isEmpty()){
             prevNodeID = znodes.get(znodes.size()-1); // Because we have to add the node befpre we get the id --> If NodeID == prevID then this was the first noded added
         }
-
+            // Turn it to an it and -1? if id != to previd
+            /*
+            Us this method of getting a single id --> Compare it to the current id (somehow store than we we register the worker node)
+            Do I neeed to implement a node class like this in the other one? I think the Znode is the only way to access stuff between instances though
+             */
         String ipAddress = NetworkUtils.getIpAddress();
 
         Node node = new Node(nodeID,prevNodeID,ipAddress,port);

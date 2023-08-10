@@ -1,9 +1,9 @@
 package cluster.management;
 
 import org.apache.zookeeper.*;
+import org.apache.zookeeper.data.Stat;
 
 import java.util.List;
-
 
 
 public class LeaderElection implements Watcher {
@@ -14,6 +14,7 @@ public class LeaderElection implements Watcher {
     private final ZookeeperClient zooKeeperClient;
     private final ServiceRegistry serviceRegistry;
     private final int currentServerPort;
+    private RuntimeException runtimeException;
 
     public LeaderElection(ZookeeperClient zooKeeperClient, ServiceRegistry serviceRegistry, int port) {
         this.zooKeeperClient = zooKeeperClient;
@@ -32,17 +33,29 @@ public class LeaderElection implements Watcher {
 
     // -------- TODO -------
     private void participateInLeaderElection() throws KeeperException, InterruptedException {
+        List<String> leader = zooKeeperClient.getSortedChildren(ELECTION_ZNODE_NAME);
+        List<String> children = zooKeeperClient.getSortedChildren(REGISTRY_ZNODE);
 
-
-        List<String> children = zooKeeperClient.getSortedChildren(ELECTION_ZNODE_NAME);
-
-        // If its the first node --> Leader
-        if (children.isEmpty()){
+        if (leader.isEmpty()) { // If no leader --> Elect one
             onElectedToBeLeader();
+
+        } else if (children.size() == 0) {  // If there is no previous worker, watch the leader node instead
+            String leaderNodePath = ELECTION_ZNODE_NAME + "/" + leader.get(0);
+            zooKeeperClient.getZookeeper().exists(leaderNodePath, this);
+            System.out.println("Watching leader node: " + leaderNodePath);
+            onWorker();
+
         } else {
-            updateServiceRegistry(false);
+            // If there is a leader & at least one worker --> We need a worker & for that worker to follow the previous node
+            String previousWorkerZnodeName = children.get(children.size() - 1);
+            String previousWorkerPath = REGISTRY_ZNODE + "/" + previousWorkerZnodeName;
+            Stat stat = zooKeeperClient.getZookeeper().exists(previousWorkerPath, this);
+            System.out.println("Watching previous worker node: " + previousWorkerZnodeName);
+            onWorker();
         }
     }
+
+
     // --------END TODO ------
 
     private void updateServiceRegistry(boolean isLeader) throws InterruptedException, KeeperException {
@@ -93,12 +106,38 @@ public class LeaderElection implements Watcher {
 
     @Override
     public void process(WatchedEvent event) {
-        if (event.getType() == Event.EventType.NodeDeleted) {
-            // The leader znode has been deleted, a new leader is elected
+        try {
+            List<String> children = zooKeeperClient.getSortedChildren(REGISTRY_ZNODE);
 
-        } else if (event.getType() == Event.EventType.NodeChildrenChanged) {
-            // The worker nodes have changed, so call the method to register for updates
+            if (event.getType() == Event.EventType.NodeChildrenChanged) {
+                // A node has been deleted, check if it's the leader or a previous worker
+                String deletedNodePath = event.getPath();
+                System.out.println(deletedNodePath);
+                if (deletedNodePath.startsWith(REGISTRY_ZNODE + ZNODE_PREFIX)) {
+                    // Previous worker node deleted, trigger leader election for the corresponding worker node
+                    String deletedNodeName = deletedNodePath.replace(REGISTRY_ZNODE + "/", "");
+                    String currentNodeName = currentZnodeName.replace(ELECTION_ZNODE_NAME + "/", "");
 
+                    if (deletedNodeName.equals("n_" + currentNodeName)) {
+                        // Only trigger leader election for the worker that was pointing to the deleted node
+                        try {
+                            participateInLeaderElection();
+                        } catch (KeeperException | InterruptedException e) {
+                            e.printStackTrace();
+                            System.out.println("Failed to participate in leader election.");
+                        }
+                    }
+                } else if (deletedNodePath.equals(ELECTION_ZNODE_NAME + "/" + children.get(0))) {
+                    // Leader node deleted, register for leader election
+                }
+            } else if (event.getType() == Event.EventType.NodeChildrenChanged) {
+                serviceRegistry.registerForUpdates();
+            }
+        } catch (KeeperException e) {
+            throw new RuntimeException(e);
+        } catch (InterruptedException e) {
+            throw runtimeException;
         }
     }
+
 }

@@ -93,8 +93,6 @@ public class ServiceRegistry implements Watcher {
 
     @Override
     public void process(WatchedEvent event) {
-        if (event.getType() == Event.EventType.NodeChildrenChanged) {
-            registerForUpdates();
-        }
+
     }
 }
