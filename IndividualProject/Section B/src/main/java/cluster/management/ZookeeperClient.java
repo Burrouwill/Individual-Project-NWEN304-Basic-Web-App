@@ -37,22 +37,23 @@ public class ZookeeperClient implements Watcher {
 
 
     // ------- TODO --------
-    public boolean isLeaderNode(String parentZnodeName, String currentZnodeName) throws KeeperException, InterruptedException {
-        List<String> children = getSortedChildren(parentZnodeName);
-        return (children.size() == 1 && children.get(0).equals(currentZnodeName));
-    }
-
     public String getPredecessorNode(String parentZnodeName, String currentZnodeName) throws KeeperException, InterruptedException {
         List<String> children = getSortedChildren(parentZnodeName);
         int index = children.indexOf(currentZnodeName);
         if (index > 0) {
             return parentZnodeName + "/" + children.get(index - 1);
         }
-        return null; // No predecessor
+        return "NoPredecessor";
+    }
+    // ------ END TODO -------
+
+
+    // ------- TODO --------
+    public boolean isLeaderNode(String parentZnodeName, String currentZnodeName) throws KeeperException, InterruptedException {
+        List<String> children = getSortedChildren(parentZnodeName);
+        return !children.isEmpty() && (parentZnodeName + "/" + children.get(0)).equals(currentZnodeName);
     }
     // -------- END TODO -------
-
-
 
     public ZooKeeper getZookeeper() {
         return zookeeper;
@@ -67,8 +68,6 @@ public class ZookeeperClient implements Watcher {
     public void close() throws InterruptedException {
         zookeeper.close();
     }
-
-
 
     @Override
     public void process(WatchedEvent event) {

@@ -1,6 +1,4 @@
 cluster\management\LeaderElection.class
-cluster\management\DistributedLock.class
-cluster\management\LeaderElection$1.class
 cluster\management\ServiceRegistry.class
 cluster\management\ZookeeperClient$1.class
 cluster\management\NetworkUtils.class

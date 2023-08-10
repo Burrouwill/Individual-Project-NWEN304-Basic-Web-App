@@ -8,11 +8,8 @@ import static cluster.management.NetworkUtils.getIpAddress;
 
 public class ServiceRegistry implements Watcher {
     private static final String REGISTRY_ZNODE = "/service_registry";
-    private static final String ELECTION_ZNODE_NAME = "/leader_election";
     private final ZookeeperClient zooKeeperClient;
     private String currentZnode = null;
-    private String nodeName = "";
-
 
     public ServiceRegistry(ZookeeperClient zooKeeperClient) {
         this.zooKeeperClient = zooKeeperClient;
@@ -27,19 +24,17 @@ public class ServiceRegistry implements Watcher {
     }
 
     // -------- TODO -------
-    public String registerToCluster(int port) throws KeeperException, InterruptedException {
+    public void registerToCluster(int port) throws KeeperException, InterruptedException {
         // Register as a worker in /service_registry znode by adding IP address and Port number
         String ipAndPort = getIpAddress() + ":" + port;
 
         String znodePath = zooKeeperClient.createEphemeralSequentialNode(REGISTRY_ZNODE + "/", ipAndPort.getBytes());
-
         currentZnode = znodePath.replace(REGISTRY_ZNODE + "/", "");
         System.out.println("Registered as worker: " + currentZnode);
 
         // Set a watcher on the created worker znode
         zooKeeperClient.getZookeeper().exists(znodePath, this);
 
-        return znodePath;
     }
     // --------END TODO ------
 
@@ -54,12 +49,12 @@ public class ServiceRegistry implements Watcher {
                 String znodePath = REGISTRY_ZNODE + "/" + worker;
                 byte[] data = zooKeeperClient.getZookeeper().getData(znodePath, false, null);
                 String workerData = new String(data);
-                nodeName = REGISTRY_ZNODE;
-                // Assuming workerData is in the format "IP:Port", split and print port
+
+
                 String[] parts = workerData.split(":");
                 if (parts.length == 2) {
                     String port = parts[1];
-                    System.out.println("Worker: " + worker + ", Port: " + port);
+                    System.out.println("Worker: " + worker + ", Address:  http://host.docker.internal:" + port);
                 } else {
                     System.out.println("Worker: " + worker + ", Invalid address format: " + workerData);
                 }
@@ -74,6 +69,7 @@ public class ServiceRegistry implements Watcher {
 
     // -------- TODO -------
     private void createServiceRegistryPZnode() {
+        // Create a persistant znode /service_registry in zookeeper if it doesn't exist
         try {
             zooKeeperClient.createPersistantNode(REGISTRY_ZNODE, null);
         } catch (KeeperException | InterruptedException e) {
@@ -83,6 +79,7 @@ public class ServiceRegistry implements Watcher {
 
     // -------- TODO -------
     public void unregisterFromCluster() {
+
         try {
             if (currentZnode != null && zooKeeperClient.getZookeeper().exists(REGISTRY_ZNODE + "/" + currentZnode, false) != null) {
                 zooKeeperClient.getZookeeper().delete(REGISTRY_ZNODE + "/" + currentZnode, -1);
@@ -94,14 +91,10 @@ public class ServiceRegistry implements Watcher {
     }
 
 
-
-
     @Override
     public void process(WatchedEvent event) {
-        if (event.getType() == Event.EventType.NodeChildrenChanged && !nodeName.equals(REGISTRY_ZNODE)){
-
+        if (event.getType() == Event.EventType.NodeChildrenChanged) {
             registerForUpdates();
         }
     }
 }
-

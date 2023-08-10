@@ -3,6 +3,8 @@ Starting Zookeeper:
 - .\zkServer in powershell within zookeeper directory 
 - (Optional) Can start a zookeeper client using: .\zkCli in powershell (The application however will be run in place of this? )
 
+- java -jar service.registry-1.0-SNAPSHOT-jar-with-dependencies.jar 8080
+
 
 Neeed to actually stop the instances of Application - Just closing the window means they will still run in the background and contribute to Leader Count.
 
