@@ -1,8 +1,6 @@
 package cluster.management;
 
 import org.apache.zookeeper.*;
-import org.apache.zookeeper.data.Stat;
-
 
 import java.util.List;
 
@@ -28,31 +26,15 @@ public class LeaderElection implements Watcher {
 
     private void participateInLeaderElection() throws KeeperException, InterruptedException {
         List<String> leaders = zooKeeperClient.getSortedChildren(ELECTION_ZNODE_NAME);
-
-        if (leaders.isEmpty()) { // If no leader --> Elect one
+        // If no leader --> Elect one
+        if (leaders.isEmpty()) {
             onElectedToBeLeader();
-
-        } else if (leaders.size() == 1) {  // If there is no previous worker, watch the leader node instead
-            String leaderNodePath = ELECTION_ZNODE_NAME + "/" + leaders.get(0);
-            zooKeeperClient.getZookeeper().exists(leaderNodePath, this);
-            System.out.println("Watching leader node: " + leaderNodePath);
-            onWorker();
-
         } else {
-            // If there is a leader & at least one worker --> We need a worker & for that worker to follow the previous node
+            // If there is a leader --> We need a worker & for that worker to follow the previous node
             String previousWorkerZnodeName = leaders.get(leaders.size() - 1);
             String previousWorkerPath = ELECTION_ZNODE_NAME + "/" + previousWorkerZnodeName;
             zooKeeperClient.getZookeeper().exists(previousWorkerPath, this);
             System.out.println("Watching previous worker node: " + previousWorkerZnodeName);
-            onWorker();
-        }
-    }
-
-
-    private void updateServiceRegistry(boolean isLeader) throws InterruptedException, KeeperException {
-        if (isLeader) {
-            onElectedToBeLeader();
-        } else {
             onWorker();
         }
     }
@@ -83,40 +65,15 @@ public class LeaderElection implements Watcher {
 
     @Override
     public void process(WatchedEvent event) {
-        /**
         try {
-            List<String> children = zooKeeperClient.getSortedChildren(REGISTRY_ZNODE);
-            System.out.println(event.getType());
             if (event.getType() == Event.EventType.NodeDeleted) {
-                // A node has been deleted, check if it's the leader or a previous worker
-                String deletedNodePath = event.getPath();
-                System.out.println(deletedNodePath+" *********");
-                if (deletedNodePath.startsWith(REGISTRY_ZNODE + ZNODE_PREFIX)) { // This isnt triggering -- > Need to re order nodes to have all in
-                    // Previous worker node deleted, trigger leader election for the corresponding worker node
-                    String deletedNodeName = deletedNodePath.replace(REGISTRY_ZNODE + "/", "");
-                    String currentNodeName = currentZnodeName.replace(ELECTION_ZNODE_NAME + "/", "");
-
-                    if (deletedNodeName.equals("n_" + currentNodeName)) {
-                        // Only trigger leader election for the worker that was pointing to the deleted node
-                        try {
-                            participateInLeaderElection();
-                        } catch (KeeperException | InterruptedException e) {
-                            e.printStackTrace();
-                            System.out.println("Failed to participate in leader election.");
-                        }
-                    }
-                } else if (deletedNodePath.equals(ELECTION_ZNODE_NAME + "/" + children.get(0))) {
-                    // Leader node deleted, register for leader election
-                }
-            } else if (event.getType() == Event.EventType.NodeChildrenChanged) {
-                serviceRegistry.registerForUpdates();
+                participateInLeaderElection();
             }
         } catch (KeeperException e) {
             throw new RuntimeException(e);
         } catch (InterruptedException e) {
-            throw runtimeException;
+            throw new RuntimeException(e);
         }
-         */
     }
 
 }
