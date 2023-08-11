@@ -7,6 +7,7 @@ import java.util.List;
 
 public class LeaderElection implements Watcher {
     private static final String ELECTION_ZNODE_NAME = "/leader_election";
+    private static final String LEADER_ZNODE = "/leader_znode";
     private static final String REGISTRY_ZNODE = "/service_registry";
     private static final String ZNODE_PREFIX = "/guide-n_";
     private final ZookeeperClient zooKeeperClient;
@@ -18,6 +19,7 @@ public class LeaderElection implements Watcher {
         this.serviceRegistry = serviceRegistry;
         this.currentServerPort = port;
         createElectionRegistryPZnode();
+        createLeaderPZnode();
     }
 
     public void registerCandidacyForLeaderElection() throws KeeperException, InterruptedException {
@@ -26,9 +28,9 @@ public class LeaderElection implements Watcher {
 
     private void participateInLeaderElection() throws KeeperException, InterruptedException {
         List<String> leadersElectionNodes = zooKeeperClient.getSortedChildren(ELECTION_ZNODE_NAME);
-        List<String> serviceNodes = zooKeeperClient.getSortedChildren(REGISTRY_ZNODE);
+        List<String> leaderNode = zooKeeperClient.getSortedChildren(LEADER_ZNODE);
         // If no leader --> Elect one
-        if (leadersElectionNodes.size() == serviceNodes.size()) {
+        if (leaderNode.size() == 0) {
             onElectedToBeLeader();
         } else {
             // If there is a leader --> We need a worker & for that worker to follow the previous node
@@ -50,11 +52,26 @@ public class LeaderElection implements Watcher {
         }
     }
 
+    /**
+     * This permanent Z Node holds the instance of the leader ephemeral node (If there is one).
+     */
+    private void createLeaderPZnode() {
+        // Create a persistant znode /leader_node in zookeeper if it doesn't exist
+        try {
+            zooKeeperClient.createPersistantNode(LEADER_ZNODE, null);
+        } catch (KeeperException | InterruptedException e) {
+    }
+
+    }
+
     public void onElectedToBeLeader() throws InterruptedException, KeeperException {
+        // Create the Leader node & register it with /leader_election & /leader_znode
         zooKeeperClient.createEphemeralSequentialNode(ELECTION_ZNODE_NAME + ZNODE_PREFIX, null);
+        zooKeeperClient.createEphemeralSequentialNode(LEADER_ZNODE + ZNODE_PREFIX, null);
         serviceRegistry.unregisterFromCluster();
         serviceRegistry.registerForUpdates();
 
+        // Leader watches all the workers
         zooKeeperClient.getZookeeper().getChildren(REGISTRY_ZNODE,this);
 
         System.out.println("I am the leader");
@@ -75,11 +92,17 @@ public class LeaderElection implements Watcher {
         try {
 
             if (event.getType() == Event.EventType.NodeDeleted) {
-                participateInLeaderElection();
+                // Only undergo leader election if we don't have a
+                // leader (Prevents ghost nodes when worker leaves
+                // & registers because the worker node it was watching left)
+                if (zooKeeperClient.getSortedChildren(LEADER_ZNODE).size() == 0) {
+                    participateInLeaderElection();
+                }
             }
 
             if (event.getType() == Event.EventType.NodeChildrenChanged) {
                 serviceRegistry.registerForUpdates();
+                // Reset the watcher
                 zooKeeperClient.getZookeeper().getChildren(REGISTRY_ZNODE,this);
 
             }
