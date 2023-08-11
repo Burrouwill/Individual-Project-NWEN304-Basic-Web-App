@@ -17,7 +17,7 @@ public class ServiceRegistry implements Watcher {
 
         // Set a watcher on the service registry znode
         try {
-            zooKeeperClient.getZookeeper().getChildren(REGISTRY_ZNODE, this);
+            zooKeeperClient.getZookeeper().getChildren(REGISTRY_ZNODE, false);
         } catch (KeeperException | InterruptedException e) {
             e.printStackTrace();
         }
@@ -28,10 +28,6 @@ public class ServiceRegistry implements Watcher {
         String znodePath = zooKeeperClient.createEphemeralSequentialNode(REGISTRY_ZNODE + "/", portToByteArray(port));
         currentZnode = znodePath.replace(REGISTRY_ZNODE + "/", "");
         System.out.println("Registered as worker: " + currentZnode);
-
-        // Set a watcher on the created worker znode
-        //zooKeeperClient.getZookeeper().exists(znodePath, this);
-
     }
 
     public void registerForUpdates() {
@@ -39,13 +35,16 @@ public class ServiceRegistry implements Watcher {
             List<String> workers = zooKeeperClient.getSortedChildren(REGISTRY_ZNODE);
 
             System.out.print("The cluster addresses are: [ ");
-            for (int i = 0 ; i < workers.size() ; i++){
+            for (int i = 0; i < workers.size(); i++) {
+                if (i == 0){
+                    System.out.println("");
+                }
                 String zNodePathName = REGISTRY_ZNODE + "/" + workers.get(i);
-                byte [] data = zooKeeperClient.getZookeeper().getData(zNodePathName,false,null);
-                Integer dataAsInt= byteArrayToInt(data);
-                System.out.println("http://host.docker.internal:"+ dataAsInt);
+                byte[] data = zooKeeperClient.getZookeeper().getData(zNodePathName, false, null);
+                Integer dataAsInt = byteArrayToInt(data);
+                System.out.println("http://host.docker.internal:" + dataAsInt);
             }
-            System.out.print(" ]");
+            System.out.println(" ]");
 
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
@@ -59,7 +58,8 @@ public class ServiceRegistry implements Watcher {
         // Create a persistant znode /service_registry in zookeeper if it doesn't exist
         try {
             zooKeeperClient.createPersistantNode(REGISTRY_ZNODE, null);
-        } catch (KeeperException | InterruptedException e) {}
+        } catch (KeeperException | InterruptedException e) {
+        }
     }
 
 
@@ -84,10 +84,7 @@ public class ServiceRegistry implements Watcher {
         return buffer.getInt();
     }
 
+
     @Override
-    public void process(WatchedEvent event) {
-        if (event.getType() == Event.EventType.NodeChildrenChanged){
-            registerForUpdates();
-        }
-    }
+    public void process(WatchedEvent event) {}
 }

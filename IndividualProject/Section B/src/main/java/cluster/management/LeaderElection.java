@@ -7,8 +7,8 @@ import java.util.List;
 
 public class LeaderElection implements Watcher {
     private static final String ELECTION_ZNODE_NAME = "/leader_election";
-    private static final String ZNODE_PREFIX = "/guide-n_";
     private static final String REGISTRY_ZNODE = "/service_registry";
+    private static final String ZNODE_PREFIX = "/guide-n_";
     private final ZookeeperClient zooKeeperClient;
     private final ServiceRegistry serviceRegistry;
     private final int currentServerPort;
@@ -35,7 +35,9 @@ public class LeaderElection implements Watcher {
             String previousWorkerZnodeName = leadersElectionNodes.get(leadersElectionNodes.size() - 1);
             String previousWorkerPath = ELECTION_ZNODE_NAME + "/" + previousWorkerZnodeName;
             zooKeeperClient.getZookeeper().exists(previousWorkerPath, this);
-            System.out.println("Watching previous worker node: " + previousWorkerZnodeName);
+            String[] splitPath = previousWorkerPath.split("_");
+            String previousWorkderID = splitPath[1];
+            System.out.println("Watching previous node: " + previousWorkerZnodeName);
             onWorker();
         }
     }
@@ -51,6 +53,10 @@ public class LeaderElection implements Watcher {
     public void onElectedToBeLeader() throws InterruptedException, KeeperException {
         zooKeeperClient.createEphemeralSequentialNode(ELECTION_ZNODE_NAME + ZNODE_PREFIX, null);
         serviceRegistry.unregisterFromCluster();
+        serviceRegistry.registerForUpdates();
+
+        zooKeeperClient.getZookeeper().getChildren(REGISTRY_ZNODE,this);
+
         System.out.println("I am the leader");
         System.out.println("Updated point of contact: http://host.docker.internal:" + currentServerPort);
     }
@@ -67,14 +73,22 @@ public class LeaderElection implements Watcher {
     @Override
     public void process(WatchedEvent event) {
         try {
+
             if (event.getType() == Event.EventType.NodeDeleted) {
                 participateInLeaderElection();
             }
-        } catch (KeeperException e) {
-            throw new RuntimeException(e);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
+
+            if (event.getType() == Event.EventType.NodeChildrenChanged) {
+                serviceRegistry.registerForUpdates();
+                zooKeeperClient.getZookeeper().getChildren(REGISTRY_ZNODE,this);
+
+            }
+
+        } catch (InterruptedException ex) {
+            throw new RuntimeException(ex);
+        } catch (KeeperException ex) {
+            throw new RuntimeException(ex);
         }
     }
 
-}
+    }

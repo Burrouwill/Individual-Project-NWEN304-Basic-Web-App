@@ -10,9 +10,11 @@ import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.data.Stat;
 
 public class ZookeeperClient implements Watcher {
     private final ZooKeeper zookeeper;
+    private static final String REGISTRY_ZNODE = "/service_registry";
 
     public ZookeeperClient(String connectionString, int sessionTimeout) throws IOException {
         this.zookeeper = new ZooKeeper(connectionString, sessionTimeout, this);
@@ -32,6 +34,7 @@ public class ZookeeperClient implements Watcher {
         Collections.sort(children);
         return children;
     }
+
 
     public ZooKeeper getZookeeper() {
         return zookeeper;
