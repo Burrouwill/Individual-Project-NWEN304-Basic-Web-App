@@ -3,6 +3,7 @@ package cluster.management;
 import org.apache.zookeeper.*;
 import org.apache.zookeeper.data.Stat;
 
+
 import java.util.List;
 
 
@@ -25,13 +26,10 @@ public class LeaderElection implements Watcher {
 
     }
 
-    // -------- TODO -------
     public void registerCandidacyForLeaderElection() throws KeeperException, InterruptedException {
         participateInLeaderElection();
     }
-    // --------END TODO ------
 
-    // -------- TODO -------
     private void participateInLeaderElection() throws KeeperException, InterruptedException {
         List<String> leader = zooKeeperClient.getSortedChildren(ELECTION_ZNODE_NAME);
         List<String> children = zooKeeperClient.getSortedChildren(REGISTRY_ZNODE);
@@ -56,7 +54,6 @@ public class LeaderElection implements Watcher {
     }
 
 
-    // --------END TODO ------
 
     private void updateServiceRegistry(boolean isLeader) throws InterruptedException, KeeperException {
         if (isLeader) {
@@ -66,7 +63,6 @@ public class LeaderElection implements Watcher {
         }
     }
 
-    // -------- TODO -------
     private void createElectionRegistryPZnode() {
         // Create a persistant znode /leader_election in zookeeper if it doesn't exist
         try {
@@ -74,46 +70,33 @@ public class LeaderElection implements Watcher {
         } catch (KeeperException | InterruptedException e) {
         }
     }
-    // --------END TODO ------
 
-    // -------- TODO -------
     public void onElectedToBeLeader() throws InterruptedException, KeeperException {
-        String znodePath = zooKeeperClient.createEphemeralSequentialNode(ELECTION_ZNODE_NAME + ZNODE_PREFIX, null);
-        currentZnodeName = znodePath.replace(ELECTION_ZNODE_NAME + "/", "");
-
+        zooKeeperClient.createEphemeralSequentialNode(ELECTION_ZNODE_NAME + ZNODE_PREFIX, null);
+        serviceRegistry.unregisterFromCluster();
         System.out.println("I am the leader");
         System.out.println("Updated point of contact: http://host.docker.internal:" + currentServerPort);
-        serviceRegistry.unregisterFromCluster();
     }
-    // --------END TODO ------
 
-    // -------- TODO -------
-    public void onWorker() {
-
-        // ------ FAULT TOLERANCE ------
-        // Watch for any changes to the predecessor node, in which case rerun the leader
-        // election
+    public void onWorker() throws InterruptedException, KeeperException {
+        // Register Worker with the Leader_Election
+        zooKeeperClient.createEphemeralSequentialNode(ELECTION_ZNODE_NAME + ZNODE_PREFIX, null);
+        // Register Worker with the Service_registry
+        serviceRegistry.registerToCluster(currentServerPort);
+        // Announce success if worker registered
         System.out.println("I am a worker");
-        try {
-            serviceRegistry.registerToCluster(currentServerPort);
-        } catch (KeeperException | InterruptedException e) {
-            e.printStackTrace();
-            System.out.println("Failed to register worker to cluster.");
-        }
-
     }
-    // --------END TODO ------
 
     @Override
     public void process(WatchedEvent event) {
         try {
             List<String> children = zooKeeperClient.getSortedChildren(REGISTRY_ZNODE);
-
-            if (event.getType() == Event.EventType.NodeChildrenChanged) {
+            System.out.println(event.getType());
+            if (event.getType() == Event.EventType.NodeDeleted) {
                 // A node has been deleted, check if it's the leader or a previous worker
                 String deletedNodePath = event.getPath();
-                System.out.println(deletedNodePath);
-                if (deletedNodePath.startsWith(REGISTRY_ZNODE + ZNODE_PREFIX)) {
+                System.out.println(deletedNodePath+" *********");
+                if (deletedNodePath.startsWith(REGISTRY_ZNODE + ZNODE_PREFIX)) { // This isnt triggering -- > Need to re order nodes to have all in
                     // Previous worker node deleted, trigger leader election for the corresponding worker node
                     String deletedNodeName = deletedNodePath.replace(REGISTRY_ZNODE + "/", "");
                     String currentNodeName = currentZnodeName.replace(ELECTION_ZNODE_NAME + "/", "");
