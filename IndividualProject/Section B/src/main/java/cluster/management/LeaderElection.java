@@ -8,7 +8,7 @@ import java.util.List;
 public class LeaderElection implements Watcher {
     private static final String ELECTION_ZNODE_NAME = "/leader_election";
     private static final String ZNODE_PREFIX = "/guide-n_";
-    private String currentZnodeName;
+    private static final String REGISTRY_ZNODE = "/service_registry";
     private final ZookeeperClient zooKeeperClient;
     private final ServiceRegistry serviceRegistry;
     private final int currentServerPort;
@@ -25,13 +25,14 @@ public class LeaderElection implements Watcher {
     }
 
     private void participateInLeaderElection() throws KeeperException, InterruptedException {
-        List<String> leaders = zooKeeperClient.getSortedChildren(ELECTION_ZNODE_NAME);
+        List<String> leadersElectionNodes = zooKeeperClient.getSortedChildren(ELECTION_ZNODE_NAME);
+        List<String> serviceNodes = zooKeeperClient.getSortedChildren(REGISTRY_ZNODE);
         // If no leader --> Elect one
-        if (leaders.isEmpty()) {
+        if (leadersElectionNodes.size() == serviceNodes.size()) {
             onElectedToBeLeader();
         } else {
             // If there is a leader --> We need a worker & for that worker to follow the previous node
-            String previousWorkerZnodeName = leaders.get(leaders.size() - 1);
+            String previousWorkerZnodeName = leadersElectionNodes.get(leadersElectionNodes.size() - 1);
             String previousWorkerPath = ELECTION_ZNODE_NAME + "/" + previousWorkerZnodeName;
             zooKeeperClient.getZookeeper().exists(previousWorkerPath, this);
             System.out.println("Watching previous worker node: " + previousWorkerZnodeName);
