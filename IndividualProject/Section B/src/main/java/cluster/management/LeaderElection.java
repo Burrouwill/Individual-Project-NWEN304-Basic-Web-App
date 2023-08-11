@@ -9,21 +9,17 @@ import java.util.List;
 
 public class LeaderElection implements Watcher {
     private static final String ELECTION_ZNODE_NAME = "/leader_election";
-    private static final String REGISTRY_ZNODE = "/service_registry";
     private static final String ZNODE_PREFIX = "/guide-n_";
     private String currentZnodeName;
     private final ZookeeperClient zooKeeperClient;
     private final ServiceRegistry serviceRegistry;
     private final int currentServerPort;
-    private RuntimeException runtimeException;
 
     public LeaderElection(ZookeeperClient zooKeeperClient, ServiceRegistry serviceRegistry, int port) {
         this.zooKeeperClient = zooKeeperClient;
         this.serviceRegistry = serviceRegistry;
         this.currentServerPort = port;
-
         createElectionRegistryPZnode();
-
     }
 
     public void registerCandidacyForLeaderElection() throws KeeperException, InterruptedException {
@@ -31,28 +27,26 @@ public class LeaderElection implements Watcher {
     }
 
     private void participateInLeaderElection() throws KeeperException, InterruptedException {
-        List<String> leader = zooKeeperClient.getSortedChildren(ELECTION_ZNODE_NAME);
-        List<String> children = zooKeeperClient.getSortedChildren(REGISTRY_ZNODE);
+        List<String> leaders = zooKeeperClient.getSortedChildren(ELECTION_ZNODE_NAME);
 
-        if (leader.isEmpty()) { // If no leader --> Elect one
+        if (leaders.isEmpty()) { // If no leader --> Elect one
             onElectedToBeLeader();
 
-        } else if (children.size() == 0) {  // If there is no previous worker, watch the leader node instead
-            String leaderNodePath = ELECTION_ZNODE_NAME + "/" + leader.get(0);
+        } else if (leaders.size() == 1) {  // If there is no previous worker, watch the leader node instead
+            String leaderNodePath = ELECTION_ZNODE_NAME + "/" + leaders.get(0);
             zooKeeperClient.getZookeeper().exists(leaderNodePath, this);
             System.out.println("Watching leader node: " + leaderNodePath);
             onWorker();
 
         } else {
             // If there is a leader & at least one worker --> We need a worker & for that worker to follow the previous node
-            String previousWorkerZnodeName = children.get(children.size() - 1);
-            String previousWorkerPath = REGISTRY_ZNODE + "/" + previousWorkerZnodeName;
-            Stat stat = zooKeeperClient.getZookeeper().exists(previousWorkerPath, this);
+            String previousWorkerZnodeName = leaders.get(leaders.size() - 1);
+            String previousWorkerPath = ELECTION_ZNODE_NAME + "/" + previousWorkerZnodeName;
+            zooKeeperClient.getZookeeper().exists(previousWorkerPath, this);
             System.out.println("Watching previous worker node: " + previousWorkerZnodeName);
             onWorker();
         }
     }
-
 
 
     private void updateServiceRegistry(boolean isLeader) throws InterruptedException, KeeperException {
@@ -89,6 +83,7 @@ public class LeaderElection implements Watcher {
 
     @Override
     public void process(WatchedEvent event) {
+        /**
         try {
             List<String> children = zooKeeperClient.getSortedChildren(REGISTRY_ZNODE);
             System.out.println(event.getType());
@@ -121,6 +116,7 @@ public class LeaderElection implements Watcher {
         } catch (InterruptedException e) {
             throw runtimeException;
         }
+         */
     }
 
 }

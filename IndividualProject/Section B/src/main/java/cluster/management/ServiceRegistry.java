@@ -30,7 +30,7 @@ public class ServiceRegistry implements Watcher {
 
         String znodePath = zooKeeperClient.createEphemeralSequentialNode(REGISTRY_ZNODE + "/", ipAndPort.getBytes());
         currentZnode = znodePath.replace(REGISTRY_ZNODE + "/", "");
-        System.out.println("Registered as worker: " + currentZnode);
+        //System.out.println("Registered as worker: " + currentZnode);
 
         // Set a watcher on the created worker znode
         zooKeeperClient.getZookeeper().exists(znodePath, this);
