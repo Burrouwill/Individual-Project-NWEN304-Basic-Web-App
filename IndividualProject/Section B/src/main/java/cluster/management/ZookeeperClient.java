@@ -27,33 +27,11 @@ public class ZookeeperClient implements Watcher {
         return this.zookeeper.create(nodePath, data, ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
     }
 
-    // ------- TODO --------
     public List<String> getSortedChildren(String parentPath) throws KeeperException, InterruptedException {
         List<String> children = zookeeper.getChildren(parentPath, false);
         Collections.sort(children);
         return children;
     }
-    // ------ END TODO -------
-
-
-    // ------- TODO --------
-    public String getPredecessorNode(String parentZnodeName, String currentZnodeName) throws KeeperException, InterruptedException {
-        List<String> children = getSortedChildren(parentZnodeName);
-        int index = children.indexOf(currentZnodeName);
-        if (index > 0) {
-            return parentZnodeName + "/" + children.get(index - 1);
-        }
-        return "NoPredecessor";
-    }
-    // ------ END TODO -------
-
-
-    // ------- TODO --------
-    public boolean isLeaderNode(String parentZnodeName, String currentZnodeName) throws KeeperException, InterruptedException {
-        List<String> children = getSortedChildren(parentZnodeName);
-        return !children.isEmpty() && (parentZnodeName + "/" + children.get(0)).equals(currentZnodeName);
-    }
-    // -------- END TODO -------
 
     public ZooKeeper getZookeeper() {
         return zookeeper;
