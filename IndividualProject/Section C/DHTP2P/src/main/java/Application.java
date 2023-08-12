@@ -1,7 +1,6 @@
 
 import org.apache.zookeeper.KeeperException;
 import java.io.IOException;
-import java.util.Hashtable;
 
 public class Application {
     private static final String ZOOKEEPER_ADDRESS = "localhost:2181";
@@ -13,13 +12,11 @@ public class Application {
         try {
             int currentServerPort = args.length == 1 ? Integer.parseInt(args[0]) : DEFAULT_PORT;
 
-            NodeHashTable nodeHashTable = new NodeHashTable();
-
             ZookeeperClient zooKeeperClient = new ZookeeperClient(ZOOKEEPER_ADDRESS, SESSION_TIMEOUT);
 
-            NodeRegistry nodeRegistry = new NodeRegistry(zooKeeperClient, currentServerPort, nodeHashTable);
+            PeerRegistry peerRegistry = new PeerRegistry(zooKeeperClient, currentServerPort);
 
-            nodeRegistry.registerToHashTable(currentServerPort);
+            peerRegistry.registerWithDHT(currentServerPort);
 
             zooKeeperClient.run();
             zooKeeperClient.close();

@@ -15,7 +15,6 @@ public class ServiceRegistry implements Watcher {
         this.zooKeeperClient = zooKeeperClient;
         createServiceRegistryPZnode();
 
-        // Set a watcher on the service registry znode
         try {
             zooKeeperClient.getZookeeper().getChildren(REGISTRY_ZNODE, false);
         } catch (KeeperException | InterruptedException e) {
