@@ -7,7 +7,7 @@ public class Application {
     private static final int SESSION_TIMEOUT = 3000;
     private static final int DEFAULT_PORT = 8080;
 
-    public static void main(String[] args) throws IOException, InterruptedException, KeeperException {
+    public static void main(String[] args){
 
         try {
             int currentServerPort = args.length == 1 ? Integer.parseInt(args[0]) : DEFAULT_PORT;
@@ -15,8 +15,6 @@ public class Application {
             ZookeeperClient zooKeeperClient = new ZookeeperClient(ZOOKEEPER_ADDRESS, SESSION_TIMEOUT);
 
             PeerRegistry peerRegistry = new PeerRegistry(zooKeeperClient, currentServerPort);
-
-            peerRegistry.registerWithDHT(currentServerPort);
 
             zooKeeperClient.run();
             zooKeeperClient.close();

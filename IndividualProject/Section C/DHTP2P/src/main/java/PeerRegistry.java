@@ -21,17 +21,20 @@ public class PeerRegistry {
     private String currentZnode = null;
 
     // Fields for the Node
-    private String nodeId; // Unique ID for this peer
+    private String nodeId;
     private String ipAddress;
     private int port;
     private Map<String,String> map;
 
-    public PeerRegistry(ZookeeperClient zooKeeperClient, int port) {
+    public PeerRegistry(ZookeeperClient zooKeeperClient, int port) throws InterruptedException, KeeperException {
         this.zooKeeperClient = zooKeeperClient;
         this.port = port;
         this.map = new HashMap<>();
-        // Create Znode
+
+        // Create Permanent DHT node if required & Create Ephemeral Node
         createDHTPZnode();
+        registerWithDHT(port);
+
         // Start the server
         try {
             startWebServer();
@@ -42,7 +45,6 @@ public class PeerRegistry {
 
     public void startWebServer() throws Exception {
         Server server = new Server(port+10);
-
         server.setHandler(new AbstractHandler() {
             @Override
             public void handle(String target, Request request, HttpServletRequest httpServletRequest, HttpServletResponse response) throws IOException, ServletException {
@@ -123,8 +125,7 @@ public class PeerRegistry {
         // The "map" --> What goes in this?
         HashMap<String,String> genericMap = new HashMap<>();
 
-
-        String znodePath = zooKeeperClient.createEphemeralSequentialNode(DHT + "/", generateZnodeData(NetworkUtils.getIpAddress(),port,genericMap));
+        String znodePath = zooKeeperClient.createEphemeralSequentialNode(DHT + "/", generateZnodeData(NetworkUtils.getIpAddress(),port));
         currentZnode = znodePath.replace(DHT + "/", "");
 
         System.out.println("Registered to DHT with ID: " + currentZnode);
@@ -136,12 +137,11 @@ public class PeerRegistry {
      * Converts Data object --> Byte array to be passed as arg to Znode
      * @param ipAddress
      * @param port
-     * @param map
      * @return
      */
-    public byte[] generateZnodeData(String ipAddress, int port, HashMap<String, String> map) throws InterruptedException, KeeperException { // What goes in the map? Where and when do I set this?
+    public byte[] generateZnodeData(String ipAddress, int port) {
         // Needs to return Data obj --> Byte array **TEST MAP**
-        Data data = new Data(ipAddress,port,map);
+        Data data = new Data(ipAddress,port);
 
         ObjectMapper objectMapper = new ObjectMapper();
         try {

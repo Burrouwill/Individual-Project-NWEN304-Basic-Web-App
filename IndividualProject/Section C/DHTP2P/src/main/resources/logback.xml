@@ -23,13 +23,17 @@
   <!-- Uncomment this if you would like to expose Logback JMX beans -->
   <!--jmxConfigurator /-->
 
-  <property name="zookeeper.console.threshold" value="INFO" />
+  <property name="zookeeper.console.threshold" value="WARN" />
 
   <property name="zookeeper.log.dir" value="." />
   <property name="zookeeper.log.file" value="zookeeper.log" />
   <property name="zookeeper.log.threshold" value="INFO" />
   <property name="zookeeper.log.maxfilesize" value="256MB" />
   <property name="zookeeper.log.maxbackupindex" value="20" />
+
+
+  <!-- Suppress Jetty information logs -->
+  <logger name="org.eclipse.jetty" level="WARN" />
 
   <!--
     console
