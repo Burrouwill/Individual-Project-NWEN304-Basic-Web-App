@@ -9,9 +9,13 @@ import org.eclipse.jetty.server.handler.AbstractHandler;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.beans.PropertyEditorSupport;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.ByteBuffer;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -54,7 +58,13 @@ public class PeerRegistry {
                     handleGetRequest(response);
                 } else if ("/put".equals(target)) {
                     // Handle PUT request
-                    handlePutRequest(request, response);
+                    try {
+                        handlePutRequest(request, response);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    } catch (KeeperException e) {
+                        throw new RuntimeException(e);
+                    }
                 } else {
                     response.setStatus(HttpServletResponse.SC_NOT_FOUND);
                 }
@@ -83,7 +93,7 @@ public class PeerRegistry {
         response.getWriter().write(jsonResponse);
     }
 
-    public void handlePutRequest(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException {
+    public void handlePutRequest(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException, InterruptedException, KeeperException {
         if ("PUT".equals(request.getMethod())) {
             StringBuilder requestBody = new StringBuilder();
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(request.getInputStream()))) {
@@ -102,29 +112,77 @@ public class PeerRegistry {
             String key = jsonNode.get("key").asText();
             String value = jsonNode.get("value").asText();
 
-            // Do something with the key and value
-            String result = processKeyAndValue(key, value);
-                System.out.println("Key: " + key); // TEST
-                System.out.println("Value: " + value); // TEST
-
-            response.setContentType("text/plain;charset=utf-8");
-            response.setStatus(HttpServletResponse.SC_OK);
-            response.getWriter().println(result);
+            // Process the Put Request
+            // If we are at the correct node --> Save the key value pair & return success
+            if (isCorrectNode(key, 4)){
+                String result = processPutRequest(key,value);
+                response.setContentType("text/plain;charset=utf-8");
+                response.setStatus(HttpServletResponse.SC_OK);
+                response.getWriter().println(result);
+                // If we are at the wrong node --> Forward request to the correct one
+            } else {
+                String result = forwardPutRequest(key,value);
+                response.setContentType("text/plain;charset=utf-8");
+                response.setStatus(HttpServletResponse.SC_OK);
+                response.getWriter().println(result);
+            }
+            System.out.println(map);
         }
     }
 
-    private String processKeyAndValue(String key, String value) {
-        // Customize this method to process the key and value as needed
-        return "Processed: " + key + " - " + value;
+    private String processPutRequest(String key, String value) {
+        map.put(key,value);
+        return "Data saved to node" + currentZnode + "at port:" + port + " / " + port+10;
+    }
+
+    private String forwardPutRequest(String key, String value) {
+        /**
+         * Calculate the hash of the key.
+         * Iterate through all the znodes/nodes in the DHT.
+         * For each node, calculate the hash modulus of its id using the same hash function.
+         * Compare the calculated hash modulus with the calculated hash from the key.
+         * If the calculated hash modulus matches the calculated hash from the key, you've found the responsible node.
+         * Forward the request to the responsible node for further processing (storing or retrieving data).
+         */
+        // Calc moduloHash of key
+        
+
+
+        System.out.println("* Forwarding Put request to node: " + "*");
+        return "";
+    }
+
+
+    public int moduloHash(String input, int modulus) {
+        try {
+            MessageDigest sha1Digest = MessageDigest.getInstance("SHA-1");
+            byte[] inputBytes = input.getBytes();
+            byte[] hashBytes = sha1Digest.digest(inputBytes);
+
+            // Convert the first 4 bytes of the hash to an integer
+            int hashInt = ByteBuffer.wrap(hashBytes, 0, 4).getInt();
+
+            // Take modulus
+            int modulusResult = Math.abs(hashInt) % modulus;
+
+            return modulusResult;
+        } catch (NoSuchAlgorithmException e) {
+            e.printStackTrace();
+            return -1; // Return an error value
+        }
+    }
+
+    public boolean isCorrectNode(String key, int modulus) throws InterruptedException, KeeperException {
+        String currentZnodePath = DHT + "/" + currentZnode;
+        byte[] zNodeId = zooKeeperClient.getZookeeper().getData(currentZnodePath, false, null);
+        String nodePortandIp = zNodeId[0] + "" + zNodeId[1];
+        return (moduloHash(key,modulus) == moduloHash(nodePortandIp, modulus));
     }
 
 
 
 
     public void registerWithDHT(int port) throws InterruptedException, KeeperException {
-        // The "map" --> What goes in this?
-        HashMap<String,String> genericMap = new HashMap<>();
-
         String znodePath = zooKeeperClient.createEphemeralSequentialNode(DHT + "/", generateZnodeData(NetworkUtils.getIpAddress(),port));
         currentZnode = znodePath.replace(DHT + "/", "");
 
@@ -140,7 +198,6 @@ public class PeerRegistry {
      * @return
      */
     public byte[] generateZnodeData(String ipAddress, int port) {
-        // Needs to return Data obj --> Byte array **TEST MAP**
         Data data = new Data(ipAddress,port);
 
         ObjectMapper objectMapper = new ObjectMapper();
