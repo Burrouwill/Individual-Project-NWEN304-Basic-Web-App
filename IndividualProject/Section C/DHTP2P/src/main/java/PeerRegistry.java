@@ -9,7 +9,6 @@ import org.eclipse.jetty.server.handler.AbstractHandler;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.beans.PropertyEditorSupport;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -19,6 +18,9 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 public class PeerRegistry {
     private static final String DHT = "/DHT";
@@ -127,35 +129,64 @@ public class PeerRegistry {
                 response.setStatus(HttpServletResponse.SC_OK);
                 response.getWriter().println(result);
             }
-            System.out.println(map);
+            System.out.println(map); // For testing - Shows the contents of the map
         }
     }
 
     private String processPutRequest(String key, String value) {
         map.put(key,value);
+        System.out.println(hash(key));
         System.out.println("Data saved to Znode ID: " + currentZnode + " (Hash:" + hash(currentZnode) + ")");
         return "Data saved to node" + currentZnode + "at port:" + port + " / " + port+10;
     }
 
     private String forwardPutRequest(String key, String value) throws InterruptedException, KeeperException {
         // Get the correct node
-        String correctNode = findCorrectNode(key);
+        String correctNodeId = findCorrectNode(key);
 
         // Forward the put request
-
-
-
+        String correctNodePath = DHT + "/" + correctNodeId;
+        String response = sendPutRequest(key,value,correctNodePath);
 
         // Display forwarding message on current node
         System.out.println("Hashed Key: "+ hash(key));
-        System.out.println("* Forwarding Put request to node: " + correctNode + "(Hashed Node: "+ hash(correctNode)+ " *");
+        System.out.println("* Forwarding Put request to node: " + correctNodeId + " (Hashed Node: "+ hash(correctNodeId)+ " *");
 
-        return "* Forwarding Put request to node: " + correctNode + "*";
+        return "* Forwarding Put request to node: " + correctNodeId + "*";
     }
 
 
-    public void sendPutRequest(String key, String value){
-        
+    public String sendPutRequest(String key, String value, String destZNodePath) throws InterruptedException, KeeperException {
+        // Get the dest port + Add 10 to access the Jetty server
+        int targetPort = getPortFromZnode(destZNodePath) + 10;
+
+        try {
+            URL url = new URL("http://localhost:" + targetPort + "/put");
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+
+            // Set request method to PUT
+            connection.setRequestMethod("PUT");
+            connection.setRequestProperty("Content-Type", "application/json");
+            connection.setDoOutput(true);
+
+            // Prepare JSON data
+            String jsonData = "{\"key\": \"" + key + "\", \"value\": \"" + value + "\"}";
+            try (OutputStream os = connection.getOutputStream()) {
+                byte[] input = jsonData.getBytes("utf-8");
+                os.write(input, 0, input.length);
+            }
+
+            // Get response from the forwarded request
+            int responseCode = connection.getResponseCode();
+            String responseMessage = connection.getResponseMessage();
+
+            connection.disconnect();
+
+            return "Forwarded to " + destZNodePath + " (Response Code: " + responseCode + ", Response Message: " + responseMessage + ")";
+        } catch (IOException e) {
+            e.printStackTrace();
+            return "Forwarding request failed.";
+        }
     }
 
     /**
@@ -165,7 +196,7 @@ public class PeerRegistry {
      * @throws InterruptedException
      * @throws KeeperException
      */
-    public int getPort(String znodePath) throws InterruptedException, KeeperException {
+    public int getPortFromZnode(String znodePath) throws InterruptedException, KeeperException {
         byte[] dataBytes = zooKeeperClient.getZookeeper().getData(znodePath,false,null);
         Data data = convertBytesToData(dataBytes);
         return data.getPort();
