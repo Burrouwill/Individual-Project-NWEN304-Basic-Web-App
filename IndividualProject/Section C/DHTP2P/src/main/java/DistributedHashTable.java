@@ -1,3 +1,4 @@
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.zookeeper.KeeperException;
@@ -8,16 +9,13 @@ import org.eclipse.jetty.server.handler.AbstractHandler;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
@@ -73,6 +71,9 @@ public class DistributedHashTable {
                     } catch (KeeperException e) {
                         throw new RuntimeException(e);
                     }
+                } else if ("/getMap".equals(target)) {
+                    // Handle MAP request
+                    handleMapRequest(request, response);
                 } else {
                     response.setStatus(HttpServletResponse.SC_NOT_FOUND);
                 }
@@ -211,7 +212,6 @@ public class DistributedHashTable {
         return "* Forwarding Put request to node: " + correctNodeId + "*";
     }
 
-
     public String sendPutRequest(String key, String value, String destZNodePath) throws InterruptedException, KeeperException {
         // Get the dest port + Add 10 to access the Jetty server
         int targetPort = getPortFromZnode(destZNodePath) + 10;
@@ -245,6 +245,54 @@ public class DistributedHashTable {
         }
     }
 
+    // ===============================================
+    //              MAP REQUEST HANDLING
+    // ===============================================
+    public void handleMapRequest(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        if ("GET".equals(request.getMethod())) {
+            try {
+                response.setContentType("application/json;charset=utf-8");
+                response.setStatus(HttpServletResponse.SC_OK);
+
+                ObjectMapper objectMapper = new ObjectMapper();
+                PrintWriter out = response.getWriter();
+                objectMapper.writeValue(out, map);
+
+            } catch (IOException e) {
+                e.printStackTrace();
+                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+            }
+        } else {
+            response.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+        }
+    }
+
+    public Map<String, String> sendMapRequest(int port) throws IOException {
+        Map<String, String> resultMap = new HashMap<>();
+
+        try {
+            URL url = new URL("http://localhost:" + port + "/getMap"); // Assuming the endpoint is "/getMap"
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+
+            try (BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
+                String inputLine;
+                StringBuilder responseContent = new StringBuilder();
+                while ((inputLine = in.readLine()) != null) {
+                    responseContent.append(inputLine);
+                }
+
+                ObjectMapper objectMapper = new ObjectMapper();
+                resultMap = objectMapper.readValue(responseContent.toString(), new TypeReference<Map<String, String>>() {});
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            resultMap.put("error", "Error: " + e.getMessage());
+        }
+
+        return resultMap;
+    }
     /**
      * Gets the port number out of a given zNode
      *
@@ -284,7 +332,6 @@ public class DistributedHashTable {
 
     /**
      * Returns the closed node to the key, in a clockwise direction on the hashring.
-     *
      * @param key
      * @return
      * @throws InterruptedException
@@ -354,9 +401,8 @@ public class DistributedHashTable {
                 adjacentNode = nodes.get(0);
             }
         }
-
+        // Handle the case where the newNodeId itself might be the only node in the DHT
         if (adjacentNode == null) {
-            // Handle the case where the newNodeId itself might be the only node in the DHT
             return newNodeId;
         }
 
@@ -366,7 +412,24 @@ public class DistributedHashTable {
     /**
      * When a new node n joins, it finds out its successor and claims the applicable key value pairs.
      */
-    public void claimKeys(String newZnode){
+    public void claimSuccessorKeys(String newZnode) throws InterruptedException, KeeperException, IOException {
+        // Get the node next to the new node (Clockwise) on DHT
+        String successorNode = findRightAdjacentNode(newZnode);
+
+        // Find the port no of the adjacent node
+        int port = getPortFromZnode(successorNode);
+        // Retive the map from said node via the /getMap end point
+        Map<String,String> successorMap = sendMapRequest(port);
+
+        // Transfer the appropriate keys to the new node & remove them from successor
+        for (String key : successorMap.keySet()){
+            if (hash(key) < hash(newZnode)){ // If hashKey to the to the left of new node then shift it to the new node (Helps to draw a picture)
+                String value = successorMap.get(key);
+                map.put(key,value); // Add the map entry to this nodes map
+                // Delete the map entry from the successor node map via /deleteMapEntry end point
+            }
+        }
+
 
     }
 
@@ -376,10 +439,6 @@ public class DistributedHashTable {
 
         System.out.println("Registered to DHT with Hash: " + hash(currentZnode) + " (Znode ID: " + currentZnode + ")");
         System.out.println("Get & Put Requests accessed at: " + (port + 10));
-
-
-        System.out.println(hash(findRightAdjacentNode(currentZnode)));
-
     }
 
     /**

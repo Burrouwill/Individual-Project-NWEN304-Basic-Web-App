@@ -43,3 +43,14 @@ $jsonData = @"
 # Send the PUT request
 $response = Invoke-RestMethod -Uri $uri -Method Put -ContentType "application/json" -Body $jsonData
 
+
+
+
+
+
+
+
+# MAP
+
+$uri = "http://localhost:8091/getMap"  # Replace with the actual URL of your endpoint
+$response = Invoke-RestMethod -Uri $uri -Method Get
