@@ -1,13 +1,35 @@
 # GET
 
-curl http://localhost:8090/get
+
+# Define key string
+$key = "test10000"
+
+# Construct the URL with the key parameter
+$uri = "http://localhost:8090/get?key=$key"
+
+# Send the GET request
+$response = Invoke-RestMethod -Uri $uri -Method Get
+
+# Print the response content
+$response
+
+
+
+
+
+
+
+
+
+
 
 # PUT (Expecting Two strings: Key Value)
+
 
 $uri = "http://localhost:8090/put" 
 
 # Define key and value strings
-$key = "test"
+$key = "test10000"
 $value = "test"
 
 # Convert the key and value strings to JSON format

@@ -12,6 +12,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.URLEncoder;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -58,7 +59,13 @@ public class PeerRegistry {
                 // Handle requests here based on the 'target' URL
                 if ("/get".equals(target)) {
                     // Handle GET request
-                    handleGetRequest(response);
+                    try {
+                        handleGetRequest(request,response);
+                    } catch (InterruptedException e) {
+                        throw new RuntimeException(e);
+                    } catch (KeeperException e) {
+                        throw new RuntimeException(e);
+                    }
                 } else if ("/put".equals(target)) {
                     // Handle PUT request
                     try {
@@ -78,25 +85,75 @@ public class PeerRegistry {
         server.start();
         server.join();
     }
+    // ===============================================
+    //              GET REQUEST HANDLING
+    // ===============================================
+    public void handleGetRequest(HttpServletRequest request, HttpServletResponse response) throws IOException, InterruptedException, KeeperException {
+        if ("GET".equals(request.getMethod())) {
+            String key = request.getParameter("key");
 
-    private void handleGetRequest(HttpServletResponse response) throws IOException {
-        // Simulate node-specific data
-        Map<String, String> nodeData = new HashMap<>();
-        nodeData.put("nodeId", nodeId);
-        nodeData.put("ipAddress", ipAddress);
-        nodeData.put("port", Integer.toString(port));
+            if (key == null || key.isEmpty()) {
+                response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+                return;
+            }
 
-        // Convert data to JSON format
-        ObjectMapper objectMapper = new ObjectMapper();
-        String jsonResponse = objectMapper.writeValueAsString(nodeData);
+            // Process the Get Request
+            // If we are at the correct node --> Retrieve the value for the key
+            if (currentZnode.equals(findCorrectNode(key))) {
+                String value = map.get(key);
+                if (value != null) {
+                    response.setContentType("text/plain;charset=utf-8");
+                    response.setStatus(HttpServletResponse.SC_OK);
+                    response.getWriter().println(value);
+                } else {
+                    response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                }
+            } else {
+                // If we are at the wrong node --> Forward request to the correct one
+                String correctNodeId = findCorrectNode(key);
+                String correctNodePath = DHT + "/" + correctNodeId;
+                String forwardedValue = forwardGetRequest(key, correctNodePath);
 
-        // Set response content type and write JSON data
-        response.setContentType("application/json");
-        response.setStatus(HttpServletResponse.SC_OK);
-        response.getWriter().write(jsonResponse);
+                // Forward the response from the correct node to the client
+                response.setContentType("text/plain;charset=utf-8");
+                response.setStatus(HttpServletResponse.SC_OK);
+                response.getWriter().println(forwardedValue);
+            }
+        }
     }
 
-    public void handlePutRequest(HttpServletRequest request, HttpServletResponse response) throws IOException, ServletException, InterruptedException, KeeperException {
+    private String forwardGetRequest(String key, String correctNodePath) throws InterruptedException, KeeperException {
+        // Send a GET request to the correct node and retrieve the value
+        // You can use a library like Apache HttpClient to send the GET request
+        // Here's a simplified example using HttpURLConnection:
+        try {
+            URL url = new URL(correctNodePath + "?key=" + URLEncoder.encode(key, "UTF-8"));
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("GET");
+
+            int responseCode = connection.getResponseCode();
+            if (responseCode == HttpURLConnection.HTTP_OK) {
+                BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                String inputLine;
+                StringBuilder response = new StringBuilder();
+                while ((inputLine = in.readLine()) != null) {
+                    response.append(inputLine);
+                }
+                in.close();
+                return response.toString();
+            } else {
+                return "Error: " + responseCode;
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            return "Error: " + e.getMessage();
+        }
+    }
+
+    // ===============================================
+    //              PUT REQUEST HANDLING
+    // ===============================================
+    public void handlePutRequest(HttpServletRequest request, HttpServletResponse response) throws IOException, InterruptedException, KeeperException {
         if ("PUT".equals(request.getMethod())) {
             StringBuilder requestBody = new StringBuilder();
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(request.getInputStream()))) {
