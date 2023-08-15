@@ -133,6 +133,7 @@ public class PeerRegistry {
 
     private String processPutRequest(String key, String value) {
         map.put(key,value);
+        System.out.println("Data saved to Znode ID: " + currentZnode + " (Hash:" + hash(currentZnode) + ")");
         return "Data saved to node" + currentZnode + "at port:" + port + " / " + port+10;
     }
 
@@ -142,7 +143,6 @@ public class PeerRegistry {
 
         // Forward the put request
 
-        System.out.println(hash(correctNode));
 
 
 
@@ -153,8 +153,26 @@ public class PeerRegistry {
         return "* Forwarding Put request to node: " + correctNode + "*";
     }
 
+
+    public void sendPutRequest(String key, String value){
+        
+    }
+
     /**
-     * Hashes a string using SHA-1 hashing algo. Returnns the hash as an int.
+     * Gets the port number out of a given zNode
+     * @param znodePath
+     * @return
+     * @throws InterruptedException
+     * @throws KeeperException
+     */
+    public int getPort(String znodePath) throws InterruptedException, KeeperException {
+        byte[] dataBytes = zooKeeperClient.getZookeeper().getData(znodePath,false,null);
+        Data data = convertBytesToData(dataBytes);
+        return data.getPort();
+    }
+
+    /**
+     * Hashes a string using SHA-1 hashing algo. Returns the hash as an int.
      * @param input
      * @return
      */
@@ -166,9 +184,9 @@ public class PeerRegistry {
 
             // Convert the first 4 bytes of the hash to an integer
             int hashInt = ByteBuffer.wrap(hashBytes, 0, 20).getInt();
-            int modulusResult = Math.abs(hashInt);
+            int result = Math.abs(hashInt);
 
-            return modulusResult;
+            return result;
         } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
             return -1; // Return an error value
@@ -220,9 +238,8 @@ public class PeerRegistry {
         String znodePath = zooKeeperClient.createEphemeralSequentialNode(DHT + "/", generateZnodeData(NetworkUtils.getIpAddress(),port));
         currentZnode = znodePath.replace(DHT + "/", "");
 
-        System.out.println("Registered to DHT with ID: " + hash(currentZnode) + " (Znode ID: " + currentZnode + ")");
+        System.out.println("Registered to DHT with Hash: " + hash(currentZnode) + " (Znode ID: " + currentZnode + ")");
         System.out.println("Get & Put Requests accessed at: " + (port+10));
-
     }
 
     /**
