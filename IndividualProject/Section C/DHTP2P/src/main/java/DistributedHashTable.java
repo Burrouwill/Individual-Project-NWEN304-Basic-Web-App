@@ -1,4 +1,3 @@
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.zookeeper.KeeperException;
@@ -12,7 +11,6 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.net.URLEncoder;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -23,7 +21,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
-public class PeerRegistry {
+public class DistributedHashTable {
     private static final String DHT = "/DHT";
     private final ZookeeperClient zooKeeperClient;
     private String currentZnode = null;
@@ -34,7 +32,7 @@ public class PeerRegistry {
     private int port;
     private Map<String, String> map;
 
-    public PeerRegistry(ZookeeperClient zooKeeperClient, int port) throws InterruptedException, KeeperException {
+    public DistributedHashTable(ZookeeperClient zooKeeperClient, int port) throws InterruptedException, KeeperException {
         this.zooKeeperClient = zooKeeperClient;
         this.port = port;
         this.map = new HashMap<>();
@@ -324,6 +322,53 @@ public class PeerRegistry {
         return correctNode;
     }
 
+    public String findRightAdjacentNode(String newNodeId) throws InterruptedException, KeeperException {
+        // Calc Hash of the newly added node
+        int newNodeHash = hash(newNodeId);
+
+        // Get all nodes in DHT
+        List<String> nodes = zooKeeperClient.getZookeeper().getChildren(DHT, false);
+        // Remove new nodeId to prevent finding its self / the newly created node
+        nodes.remove(newNodeId);
+
+        String adjacentNode = null;
+        int smallestHashDiff = Integer.MAX_VALUE;
+
+        for (String node : nodes) {
+            int currentNodeHash = hash(node);
+
+            if (currentNodeHash > newNodeHash) { // If we are not looking at the same new node & node hash > newNode hash (Further clockwise than new node)
+                int hashDiff = currentNodeHash - newNodeHash;
+                if (hashDiff < smallestHashDiff) {  // Find the node that is closest to the new node & update vars
+                    adjacentNode = node;
+                    smallestHashDiff = hashDiff;
+                }
+            }
+        }
+
+        // Handle wrap-around case
+        if (adjacentNode == null && !nodes.isEmpty()) {
+            int firstNodeHash = hash(nodes.get(0));
+            int wrapAroundDiff = newNodeHash - firstNodeHash;
+            if (wrapAroundDiff < smallestHashDiff) {
+                adjacentNode = nodes.get(0);
+            }
+        }
+
+        if (adjacentNode == null) {
+            // Handle the case where the newNodeId itself might be the only node in the DHT
+            return newNodeId;
+        }
+
+        return adjacentNode;
+    }
+
+    /**
+     * When a new node n joins, it finds out its successor and claims the applicable key value pairs.
+     */
+    public void claimKeys(String newZnode){
+
+    }
 
     public void registerWithDHT(int port) throws InterruptedException, KeeperException {
         String znodePath = zooKeeperClient.createEphemeralSequentialNode(DHT + "/", generateZnodeData(NetworkUtils.getIpAddress(), port));
@@ -331,6 +376,10 @@ public class PeerRegistry {
 
         System.out.println("Registered to DHT with Hash: " + hash(currentZnode) + " (Znode ID: " + currentZnode + ")");
         System.out.println("Get & Put Requests accessed at: " + (port + 10));
+
+
+        System.out.println(hash(findRightAdjacentNode(currentZnode)));
+
     }
 
     /**

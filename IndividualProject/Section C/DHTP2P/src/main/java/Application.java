@@ -1,7 +1,3 @@
-
-import org.apache.zookeeper.KeeperException;
-import java.io.IOException;
-
 public class Application {
     private static final String ZOOKEEPER_ADDRESS = "localhost:2181";
     private static final int SESSION_TIMEOUT = 3000;
@@ -14,7 +10,7 @@ public class Application {
 
             ZookeeperClient zooKeeperClient = new ZookeeperClient(ZOOKEEPER_ADDRESS, SESSION_TIMEOUT);
 
-            PeerRegistry peerRegistry = new PeerRegistry(zooKeeperClient, currentServerPort);
+            DistributedHashTable distributedHashTable = new DistributedHashTable(zooKeeperClient, currentServerPort);
 
             zooKeeperClient.run();
             zooKeeperClient.close();
