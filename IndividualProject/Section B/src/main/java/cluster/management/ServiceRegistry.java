@@ -23,8 +23,11 @@ public class ServiceRegistry implements Watcher {
     }
 
     public void registerToCluster(int port) throws KeeperException, InterruptedException {
+        // Get ip address & Process net into new Data object
+        String ip = NetworkUtils.getIpAddress().replace(".","");
+        Data data = new Data(ip,port);
         // Register as a worker in /service_registry znode
-        String znodePath = zooKeeperClient.createEphemeralSequentialNode(REGISTRY_ZNODE + "/", portToByteArray(port));
+        String znodePath = zooKeeperClient.createEphemeralSequentialNode(REGISTRY_ZNODE + "/", Data.convertDataToBytes(data));
         currentZnode = znodePath.replace(REGISTRY_ZNODE + "/", "");
         System.out.println("Registered as worker: " + currentZnode);
     }
@@ -39,9 +42,12 @@ public class ServiceRegistry implements Watcher {
                     System.out.println("");
                 }
                 String zNodePathName = REGISTRY_ZNODE + "/" + workers.get(i);
-                byte[] data = zooKeeperClient.getZookeeper().getData(zNodePathName, false, null);
-                Integer dataAsInt = byteArrayToInt(data);
-                System.out.println("http://host.docker.internal:" + dataAsInt);
+
+                // Get the Port Number from the znode / data object
+                byte[] zNodeData = zooKeeperClient.getZookeeper().getData(zNodePathName, false, null);
+                Data data = Data.convertBytesToData(zNodeData);
+                int port = data.getPort();
+                System.out.println("http://host.docker.internal:" + port);
             }
             System.out.println(" ]");
 
@@ -72,15 +78,6 @@ public class ServiceRegistry implements Watcher {
         } catch (KeeperException | InterruptedException e) {
             e.printStackTrace();
         }
-    }
-
-    public static byte[] portToByteArray(int value) {
-        return ByteBuffer.allocate(4).putInt(value).array();
-    }
-
-    public static int byteArrayToInt(byte[] bytes) {
-        ByteBuffer buffer = ByteBuffer.wrap(bytes);
-        return buffer.getInt();
     }
 
 
