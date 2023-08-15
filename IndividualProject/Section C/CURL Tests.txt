@@ -5,7 +5,7 @@
 $key = "test10000"
 
 # Construct the URL with the key parameter
-$uri = "http://localhost:8090/get?key=$key"
+$uri = "http://localhost:8091/get?key=$key"
 
 # Send the GET request
 $response = Invoke-RestMethod -Uri $uri -Method Get
@@ -26,11 +26,11 @@ $response
 # PUT (Expecting Two strings: Key Value)
 
 
-$uri = "http://localhost:8090/put" 
+$uri = "http://localhost:8092/put" 
 
 # Define key and value strings
 $key = "test10000"
-$value = "test"
+$value = "*value*"
 
 # Convert the key and value strings to JSON format
 $jsonData = @"

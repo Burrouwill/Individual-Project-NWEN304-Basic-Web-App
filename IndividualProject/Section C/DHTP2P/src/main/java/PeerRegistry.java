@@ -32,7 +32,7 @@ public class PeerRegistry {
     private String nodeId;
     private String ipAddress;
     private int port;
-    private Map<String,String> map;
+    private Map<String, String> map;
 
     public PeerRegistry(ZookeeperClient zooKeeperClient, int port) throws InterruptedException, KeeperException {
         this.zooKeeperClient = zooKeeperClient;
@@ -52,7 +52,7 @@ public class PeerRegistry {
     }
 
     public void startWebServer() throws Exception {
-        Server server = new Server(port+10);
+        Server server = new Server(port + 10);
         server.setHandler(new AbstractHandler() {
             @Override
             public void handle(String target, Request request, HttpServletRequest httpServletRequest, HttpServletResponse response) throws IOException, ServletException {
@@ -60,7 +60,7 @@ public class PeerRegistry {
                 if ("/get".equals(target)) {
                     // Handle GET request
                     try {
-                        handleGetRequest(request,response);
+                        handleGetRequest(request, response);
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     } catch (KeeperException e) {
@@ -85,6 +85,7 @@ public class PeerRegistry {
         server.start();
         server.join();
     }
+
     // ===============================================
     //              GET REQUEST HANDLING
     // ===============================================
@@ -96,7 +97,6 @@ public class PeerRegistry {
                 response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
                 return;
             }
-
             // Process the Get Request
             // If we are at the correct node --> Retrieve the value for the key
             if (currentZnode.equals(findCorrectNode(key))) {
@@ -105,6 +105,7 @@ public class PeerRegistry {
                     response.setContentType("text/plain;charset=utf-8");
                     response.setStatus(HttpServletResponse.SC_OK);
                     response.getWriter().println(value);
+                    System.out.println("Returning Value: " + value + " to client");
                 } else {
                     response.setStatus(HttpServletResponse.SC_NOT_FOUND);
                 }
@@ -113,6 +114,7 @@ public class PeerRegistry {
                 String correctNodeId = findCorrectNode(key);
                 String correctNodePath = DHT + "/" + correctNodeId;
                 String forwardedValue = forwardGetRequest(key, correctNodePath);
+                System.out.println("* Forwarding Get request to Znode: " + correctNodeId + " (Hashed Node: " + hash(correctNodeId) + ")" + " *");
 
                 // Forward the response from the correct node to the client
                 response.setContentType("text/plain;charset=utf-8");
@@ -123,27 +125,26 @@ public class PeerRegistry {
     }
 
     private String forwardGetRequest(String key, String correctNodePath) throws InterruptedException, KeeperException {
-        // Send a GET request to the correct node and retrieve the value
-        // You can use a library like Apache HttpClient to send the GET request
-        // Here's a simplified example using HttpURLConnection:
+        // Get the dest port + Add 10 to access the Jetty server
+        int targetPort = getPortFromZnode(correctNodePath) + 10;
+
         try {
-            URL url = new URL(correctNodePath + "?key=" + URLEncoder.encode(key, "UTF-8"));
+            URL url = new URL("http://localhost:" + targetPort + "/get?key=" + key);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+
+            // Set request method to GET
             connection.setRequestMethod("GET");
 
-            int responseCode = connection.getResponseCode();
-            if (responseCode == HttpURLConnection.HTTP_OK) {
-                BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+            // Get response from the forwarded request
+            try (BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
                 String inputLine;
                 StringBuilder response = new StringBuilder();
                 while ((inputLine = in.readLine()) != null) {
                     response.append(inputLine);
                 }
-                in.close();
                 return response.toString();
-            } else {
-                return "Error: " + responseCode;
             }
+
         } catch (IOException e) {
             e.printStackTrace();
             return "Error: " + e.getMessage();
@@ -174,14 +175,14 @@ public class PeerRegistry {
 
             // Process the Put Request
             // If we are at the correct node --> Save the key value pair & return success
-            if (currentZnode.equals(findCorrectNode(key))){
-                String result = processPutRequest(key,value);
+            if (currentZnode.equals(findCorrectNode(key))) {
+                String result = processPutRequest(key, value);
                 response.setContentType("text/plain;charset=utf-8");
                 response.setStatus(HttpServletResponse.SC_OK);
                 response.getWriter().println(result);
                 // If we are at the wrong node --> Forward request to the correct one
             } else {
-                String result = forwardPutRequest(key,value);
+                String result = forwardPutRequest(key, value);
                 response.setContentType("text/plain;charset=utf-8");
                 response.setStatus(HttpServletResponse.SC_OK);
                 response.getWriter().println(result);
@@ -191,10 +192,10 @@ public class PeerRegistry {
     }
 
     private String processPutRequest(String key, String value) {
-        map.put(key,value);
+        map.put(key, value);
         System.out.println(hash(key));
         System.out.println("Data saved to Znode ID: " + currentZnode + " (Hash:" + hash(currentZnode) + ")");
-        return "Data saved to node" + currentZnode + "at port:" + port + " / " + port+10;
+        return "Data saved to node" + currentZnode + "at port:" + port + " / " + port + 10;
     }
 
     private String forwardPutRequest(String key, String value) throws InterruptedException, KeeperException {
@@ -203,11 +204,11 @@ public class PeerRegistry {
 
         // Forward the put request
         String correctNodePath = DHT + "/" + correctNodeId;
-        String response = sendPutRequest(key,value,correctNodePath);
+        String response = sendPutRequest(key, value, correctNodePath);
 
         // Display forwarding message on current node
-        System.out.println("Hashed Key: "+ hash(key));
-        System.out.println("* Forwarding Put request to node: " + correctNodeId + " (Hashed Node: "+ hash(correctNodeId)+ " *");
+        System.out.println("Hashed Key: " + hash(key));
+        System.out.println("* Forwarding Put request to node: " + correctNodeId + " (Hashed Node: " + hash(correctNodeId) + ")" + " *");
 
         return "* Forwarding Put request to node: " + correctNodeId + "*";
     }
@@ -248,19 +249,21 @@ public class PeerRegistry {
 
     /**
      * Gets the port number out of a given zNode
+     *
      * @param znodePath
      * @return
      * @throws InterruptedException
      * @throws KeeperException
      */
     public int getPortFromZnode(String znodePath) throws InterruptedException, KeeperException {
-        byte[] dataBytes = zooKeeperClient.getZookeeper().getData(znodePath,false,null);
+        byte[] dataBytes = zooKeeperClient.getZookeeper().getData(znodePath, false, null);
         Data data = convertBytesToData(dataBytes);
         return data.getPort();
     }
 
     /**
      * Hashes a string using SHA-1 hashing algo. Returns the hash as an int.
+     *
      * @param input
      * @return
      */
@@ -283,6 +286,7 @@ public class PeerRegistry {
 
     /**
      * Returns the closed node to the key, in a clockwise direction on the hashring.
+     *
      * @param key
      * @return
      * @throws InterruptedException
@@ -298,10 +302,10 @@ public class PeerRegistry {
         String correctNode = null;
         int bestHashDiff = Integer.MAX_VALUE;
 
-        for (int i = 0 ; i < nodes.size() ; i++){
+        for (int i = 0; i < nodes.size(); i++) {
             int nodeHash = hash(nodes.get((i)));
-            if (keyHash < nodeHash){ // If node is to the right of the key / Further around on the hashring --> We will consider it a potential correct node (Everything to the left / less than is not considered)
-                if (nodeHash - keyHash < bestHashDiff){ // We look for the node closest to the key but still to the right of the key on the hashring
+            if (keyHash < nodeHash) { // If node is to the right of the key / Further around on the hashring --> We will consider it a potential correct node (Everything to the left / less than is not considered)
+                if (nodeHash - keyHash < bestHashDiff) { // We look for the node closest to the key but still to the right of the key on the hashring
                     correctNode = nodes.get(i);
                     bestHashDiff = nodeHash - keyHash;
                 }
@@ -314,24 +318,24 @@ public class PeerRegistry {
         }
 
         // Error handling
-        if (correctNode == null){
+        if (correctNode == null) {
             throw new IllegalArgumentException("Couldnt find a node, something went wrong.");
         }
         return correctNode;
     }
 
 
-
     public void registerWithDHT(int port) throws InterruptedException, KeeperException {
-        String znodePath = zooKeeperClient.createEphemeralSequentialNode(DHT + "/", generateZnodeData(NetworkUtils.getIpAddress(),port));
+        String znodePath = zooKeeperClient.createEphemeralSequentialNode(DHT + "/", generateZnodeData(NetworkUtils.getIpAddress(), port));
         currentZnode = znodePath.replace(DHT + "/", "");
 
         System.out.println("Registered to DHT with Hash: " + hash(currentZnode) + " (Znode ID: " + currentZnode + ")");
-        System.out.println("Get & Put Requests accessed at: " + (port+10));
+        System.out.println("Get & Put Requests accessed at: " + (port + 10));
     }
 
     /**
      * Converts Data object --> Byte array to be passed as arg to Znode
+     *
      * @param ipAddress
      * @param port
      * @return
@@ -348,6 +352,7 @@ public class PeerRegistry {
 
     /**
      * Converts byte data from Znode --> Data object
+     *
      * @param dataBytes
      * @return
      */
@@ -365,6 +370,7 @@ public class PeerRegistry {
 
     /**
      * Converts a Data obj to byte array
+     *
      * @param data
      * @return
      */
