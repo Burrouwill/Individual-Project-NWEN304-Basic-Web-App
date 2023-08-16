@@ -106,7 +106,9 @@ public class DistributedHashTable {
                     response.getWriter().println(value);
                     System.out.println("Returning Value: " + value + " to client");
                 } else {
-                    response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                    response.setContentType("text/plain;charset=utf-8");
+                    response.setStatus(HttpServletResponse.SC_OK);
+                    response.getWriter().println("Key not found");
                 }
             } else {
                 // If we are at the wrong node --> Forward request to the correct one

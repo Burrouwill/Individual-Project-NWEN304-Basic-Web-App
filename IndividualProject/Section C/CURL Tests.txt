@@ -1,3 +1,6 @@
+Notes:
+- You can view the response in console using: $response
+
 # GET
 
 
@@ -5,7 +8,7 @@
 $key = "test10000"
 
 # Construct the URL with the key parameter
-$uri = "http://localhost:8091/get?key=$key"
+$uri = "http://localhost:8090/get?key=$key"
 
 # Send the GET request
 $response = Invoke-RestMethod -Uri $uri -Method Get
@@ -16,35 +19,29 @@ $response
 
 
 
-
-
-
-
-
-
-
 # PUT (Expecting Two strings: Key Value)
 
 
-$uri = "http://localhost:8092/put" 
+    $uri = "http://localhost:8090/put" 
 
-# Define key and value strings
-$key = "test10000"
-$value = "*value*"
+    # Define key and value strings
+    $key = "test10000"
+    $value = "*value*"
 
-# Convert the key and value strings to JSON format
-$jsonData = @"
-{
-    "key": "$key",
-    "value": "$value"
-}
-"@
+    # Create a PowerShell object with properties
+    $jsonObject = @{
+        key = $key
+        value = $value
+    }
 
-# Send the PUT request
-$response = Invoke-RestMethod -Uri $uri -Method Put -ContentType "application/json" -Body $jsonData
+    # Convert the PowerShell object to JSON format
+    $jsonData = $jsonObject | ConvertTo-Json
 
+    # Send the PUT request
+    $response = Invoke-RestMethod -Uri $uri -Method Put -ContentType "application/json" -Body $jsonData
 
-
+    # Print the response
+    $response
 
 
 
@@ -52,5 +49,12 @@ $response = Invoke-RestMethod -Uri $uri -Method Put -ContentType "application/js
 
 # MAP
 
-$uri = "http://localhost:8091/getMap"  # Replace with the actual URL of your endpoint
-$response = Invoke-RestMethod -Uri $uri -Method Get
+    $uri = "http://localhost:8090/getMap" 
+    $response = Invoke-RestMethod -Uri $uri -Method Get
+    $response
+
+
+
+
+
+# UPDATE MAP
