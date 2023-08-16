@@ -190,15 +190,17 @@ public class DistributedHashTable {
                 response.setStatus(HttpServletResponse.SC_OK);
                 response.getWriter().println(result);
             }
-            System.out.println(map); // For testing - Shows the contents of the map
+
         }
     }
 
     private String processPutRequest(String key, String value) {
         map.put(key, value);
-        System.out.println(hash(key));
+        System.out.println("New Key added");
+        System.out.println("Key: " + key + " (Hash: " +hash(key) + ")");
         System.out.println("Data saved to Znode ID: " + currentZnode + " (Hash:" + hash(currentZnode) + ")");
-        return "Data saved to node" + currentZnode + "at port:" + port + " / " + port + 10;
+        int portActive = port+10;
+        return "Data saved to node: " + currentZnode + " at port:" + portActive + " / " + port + 10;
     }
 
     private String forwardPutRequest(String key, String value) throws InterruptedException, KeeperException {
@@ -349,14 +351,7 @@ public class DistributedHashTable {
                 os.write(input, 0, input.length);
             }
 
-            // Get response from the PUT request
-            int responseCode = connection.getResponseCode();
-            String responseMessage = connection.getResponseMessage();
-
             connection.disconnect();
-
-            System.out.println("Response Code: " + responseCode);
-            System.out.println("Response Message: " + responseMessage);
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -440,7 +435,7 @@ public class DistributedHashTable {
         return correctNode;
     }
 
-    public String findRightAdjacentNode(String newNodeId) throws InterruptedException, KeeperException {
+    public String getSuccessor(String newNodeId) throws InterruptedException, KeeperException {
         // Calc Hash of the newly added node
         int newNodeHash = hash(newNodeId);
 
@@ -480,49 +475,86 @@ public class DistributedHashTable {
         return adjacentNode;
     }
 
+    public String getPredcessor(String newNodeId) throws InterruptedException, KeeperException {
+        int newNodeHash = hash(newNodeId);
+
+        List<String> nodes = zooKeeperClient.getZookeeper().getChildren(DHT, false);
+        nodes.remove(newNodeId);
+
+        String adjacentNode = null;
+        int smallestHashDiff = Integer.MAX_VALUE;
+
+        for (String node : nodes) {
+            int currentNodeHash = hash(node);
+
+            if (currentNodeHash < newNodeHash) { // If node hash < newNode hash (Earlier clockwise than new node)
+                int hashDiff = newNodeHash - currentNodeHash;
+                if (hashDiff < smallestHashDiff) {
+                    adjacentNode = node;
+                    smallestHashDiff = hashDiff;
+                }
+            }
+        }
+
+        // Handle wrap-around case
+        if (adjacentNode == null && !nodes.isEmpty()) {
+            int lastNodeHash = hash(nodes.get(nodes.size() - 1));
+            int wrapAroundDiff = lastNodeHash - newNodeHash;
+            if (wrapAroundDiff < smallestHashDiff) {
+                adjacentNode = nodes.get(nodes.size() - 1);
+            }
+        }
+
+        if (adjacentNode == null) {
+            // Handle the case where the newNodeId itself might be the only node in the DHT
+            return newNodeId;
+        }
+
+        return adjacentNode;
+    }
+
     /**
      * When a new node n joins, it finds out its successor and claims the applicable key value pairs.
      */
     public void claimSuccessorKeys(String newZnode) throws InterruptedException, KeeperException, IOException {
-        // Get the node next to the new node (Clockwise) on DHT
-        String successorNode = findRightAdjacentNode(newZnode);
+        // Get the successor node (Clockwise) on DHT
+        String successorNode = getSuccessor(newZnode);
 
         // Find the port no of the adjacent node
         String successorNodePath = DHT + "/" + successorNode;
         int port = getPortFromZnode(successorNodePath)+10;
-        System.out.println(port);
+
         // Retive the map from said node via the /getMap end point
         Map<String,String> successorMap = sendMapRequest(port);
 
         // Transfer the appropriate keys to the new node & remove them from successor
         for (String key : successorMap.keySet()){
-            if (hash(key) < hash(newZnode)){ // If hashKey to the to the left of new node then shift it to the new node (Helps to draw a picture)
+            if (hash(key) < hash(newZnode) && hash(key) > hash(getPredcessor(newZnode))){ // If hashKey to the to the left of new nodeHash && it is the closest clockwise Node to the key then shift it to the new node (Helps to draw a picture)
                 String value = successorMap.get(key);
                 map.put(key,value); // Add the map entry to this nodes map
-                // Delete the map entry from the successor node map via /deleteMapEntry end point
+                successorMap.remove(key); // Remove the map entry from successorMap
             }
         }
-
         // Update Keys of Successor Node
-        Map<String,String> testMap = Map.of("I","am","a","test");
-        sendMapPutRequest(port,testMap);
+        sendMapPutRequest(port,successorMap);
 
+        // Announce Keys Inherited from Successor
+        System.out.println("Keys Inherited From Successor");
+        System.out.println("Updated Map: "+ map);
     }
 
     public void registerWithDHT(int port) throws InterruptedException, KeeperException, IOException {
+        // Register node with zookeeper
         String znodePath = zooKeeperClient.createEphemeralSequentialNode(DHT + "/", generateZnodeData(NetworkUtils.getIpAddress(), port));
         currentZnode = znodePath.replace(DHT + "/", "");
 
         System.out.println("Registered to DHT with Hash: " + hash(currentZnode) + " (Znode ID: " + currentZnode + ")");
         System.out.println("Get & Put Requests accessed at: " + (port + 10));
 
-
+        // Inherit elegible keys from successor
         if (zooKeeperClient.getSortedChildren(DHT).size() > 1){
             claimSuccessorKeys(currentZnode);
         }
-
-
-
     }
 
     /**

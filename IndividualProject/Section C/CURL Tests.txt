@@ -25,7 +25,7 @@ $response
     $uri = "http://localhost:8090/put" 
 
     # Define key and value strings
-    $key = "test10000"
+    $key = "test1331223"
     $value = "*value*"
 
     # Create a PowerShell object with properties
@@ -57,16 +57,23 @@ $response
 
 
 
-# UPDATE MAP
+# UPDATE MAP (Maybe use for testing claimSuccessorKeys?)
 
     # Define the URL
     $uri = "http://localhost:8090/updateMap"
 
     # Define the new map data
     $newMap = @{
-        "key1" = "value1"
-        "key2" = "value2"
-        "key3" = "value3"
+        "key1356" = "value143"
+        "key22323211" = "value23452"
+        "key36565" = "value3"
+        "key213132123" = "value231"
+        "key135423442" = "value223"
+        "key3434343" = "value123233"
+        "key21423312331" = "value231"
+        "key13213122342" = "value223"
+        "key33213" = "value123233"
+
         # Add more key-value pairs as needed
     }
 
