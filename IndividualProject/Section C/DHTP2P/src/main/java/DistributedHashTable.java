@@ -13,6 +13,7 @@ import java.io.*;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -76,7 +77,7 @@ public class DistributedHashTable {
                     handleMapRequest(request, response);
                 } else if ("/updateMap".equals(target)) {
                     handleUpdateMapRequest(request, response);
-                }else {
+                } else {
                     response.setStatus(HttpServletResponse.SC_NOT_FOUND);
                 }
                 request.setHandled(true);
@@ -197,10 +198,10 @@ public class DistributedHashTable {
     private String processPutRequest(String key, String value) {
         map.put(key, value);
         System.out.println("New Key added");
-        System.out.println("Key: " + key + " (Hash: " +hash(key) + ")");
+        System.out.println("Key: " + key + " (Hash: " + hash(key) + ")");
         System.out.println("Data saved to Znode ID: " + currentZnode + " (Hash:" + hash(currentZnode) + ")");
-        int portActive = port+10;
-        return "Data saved to node: " + currentZnode + " at port:" + portActive + " / " + port + 10;
+        int portActive = port + 10;
+        return "Data saved to node: " + currentZnode + " at port:" + portActive + " (Znode at: " + port + ")";
     }
 
     private String forwardPutRequest(String key, String value) throws InterruptedException, KeeperException {
@@ -289,7 +290,8 @@ public class DistributedHashTable {
                 }
 
                 ObjectMapper objectMapper = new ObjectMapper();
-                resultMap = objectMapper.readValue(responseContent.toString(), new TypeReference<Map<String, String>>() {});
+                resultMap = objectMapper.readValue(responseContent.toString(), new TypeReference<Map<String, String>>() {
+                });
             }
 
         } catch (IOException e) {
@@ -307,13 +309,14 @@ public class DistributedHashTable {
         if ("PUT".equals(request.getMethod())) {
             try {
                 ObjectMapper objectMapper = new ObjectMapper();
-                Map<String, String> newMap = objectMapper.readValue(request.getInputStream(), new TypeReference<Map<String, String>>() {});
+                Map<String, String> newMap = objectMapper.readValue(request.getInputStream(), new TypeReference<Map<String, String>>() {
+                });
 
                 map = newMap;
 
                 // Announce Keys Updated at Successor Node
                 System.out.println("Keys Updated");
-                System.out.println("Updated Map: "+ map);
+                System.out.println("Updated Map: " + map);
 
                 response.setContentType("text/plain;charset=utf-8");
                 response.setStatus(HttpServletResponse.SC_OK);
@@ -336,22 +339,42 @@ public class DistributedHashTable {
             URL url = new URL("http://localhost:" + targetPort + "/updateMap");
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
 
-            // Set request method to PUT
-            connection.setRequestMethod("PUT");
-            connection.setRequestProperty("Content-Type", "application/json");
-            connection.setDoOutput(true);
+            try {
+                // Set request method to PUT
+                connection.setRequestMethod("PUT");
+                connection.setRequestProperty("Content-Type", "application/json");
+                connection.setDoOutput(true);
 
-            // Convert the map to JSON format
-            ObjectMapper objectMapper = new ObjectMapper();
-            String jsonData = objectMapper.writeValueAsString(mapToSend);
+                // Convert the map to JSON format
+                ObjectMapper objectMapper = new ObjectMapper();
+                String jsonData = objectMapper.writeValueAsString(mapToSend);
 
-            // Write JSON data to the request body
-            try (OutputStream os = connection.getOutputStream()) {
-                byte[] input = jsonData.getBytes("utf-8");
-                os.write(input, 0, input.length);
+                // Write JSON data to the request body
+                try (OutputStream os = connection.getOutputStream()) {
+                    byte[] input = jsonData.getBytes("utf-8");
+                    os.write(input, 0, input.length);
+                }
+
+                // IMPORTANT: Get and process the response if needed
+                int responseCode = connection.getResponseCode();
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    // Process the response here if necessary
+                    try (BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()))) {
+                        String inputLine;
+                        StringBuilder responseContent = new StringBuilder();
+                        while ((inputLine = in.readLine()) != null) {
+                            responseContent.append(inputLine);
+                        }
+
+                        // Process response content if needed
+                    }
+                } else {
+                    // Handle error response
+                }
+
+            } finally {
+                connection.disconnect();
             }
-
-            connection.disconnect();
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -398,6 +421,7 @@ public class DistributedHashTable {
 
     /**
      * Returns the closed node to the key, in a clockwise direction on the hashring.
+     *
      * @param key
      * @return
      * @throws InterruptedException
@@ -496,7 +520,7 @@ public class DistributedHashTable {
             }
         }
 
-        // Handle wrap-around case
+
         if (adjacentNode == null && !nodes.isEmpty()) {
             int lastNodeHash = hash(nodes.get(nodes.size() - 1));
             int wrapAroundDiff = lastNodeHash - newNodeHash;
@@ -505,10 +529,6 @@ public class DistributedHashTable {
             }
         }
 
-        if (adjacentNode == null) {
-            // Handle the case where the newNodeId itself might be the only node in the DHT
-            return newNodeId;
-        }
 
         return adjacentNode;
     }
@@ -520,28 +540,63 @@ public class DistributedHashTable {
         // Get the successor node (Clockwise) on DHT
         String successorNode = getSuccessor(newZnode);
 
+        // Get the predecessor node (Anticlockwise) on DHT
+        String predecessorNode = getPredcessor(newZnode);
+
+        System.out.println("Predcessor: " + hash(predecessorNode));
+        System.out.println("Successor: " + hash(successorNode));
+
         // Find the port no of the adjacent node
         String successorNodePath = DHT + "/" + successorNode;
-        int port = getPortFromZnode(successorNodePath)+10;
+        int port = getPortFromZnode(successorNodePath) + 10;
 
-        // Retive the map from said node via the /getMap end point
-        Map<String,String> successorMap = sendMapRequest(port);
+        // Retrive the map from the successor node via the /getMap endpoint
+        Map<String, String> successorMap = sendMapRequest(port);
 
-        // Transfer the appropriate keys to the new node & remove them from successor
-        for (String key : successorMap.keySet()){
-            if (hash(key) < hash(newZnode) && hash(key) > hash(getPredcessor(newZnode))){ // If hashKey to the to the left of new nodeHash && it is the closest clockwise Node to the key then shift it to the new node (Helps to draw a picture)
+        // Prepare a list of keys to remove from the successorMap
+        List<String> keysToRemove = new ArrayList<>();
+
+        // Calculate the hash value of the new node
+        int newNodeHash = hash(newZnode);
+
+        // Calculate the hash value of the predecessor node
+        int predecessorHash = hash(predecessorNode);
+
+        // Transfer the appropriate keys to the new node & mark them for removal from successorMap
+        for (String key : successorMap.keySet()) {
+            // Calculate the hash value of the key
+            int keyHash = hash(key);
+
+            // This handles:
+            // Case 1: (Predecessor < key < newNode < SuccessorNode)
+            // Case 2: (Predecessor < key < 0 < newNode < SuccessorNode)
+            // Case 3: (Predecessor < 0 < key < newNode < SuccessorNode)
+            if ((predecessorHash < newNodeHash && keyHash <= newNodeHash && keyHash > predecessorHash) ||
+                    (predecessorHash > newNodeHash && (keyHash <= newNodeHash || keyHash > predecessorHash))) {
+
                 String value = successorMap.get(key);
-                map.put(key,value); // Add the map entry to this nodes map
-                successorMap.remove(key); // Remove the map entry from successorMap
+                map.put(key, value);
+                keysToRemove.add(key);
             }
         }
-        // Update Keys of Successor Node
-        sendMapPutRequest(port,successorMap);
 
-        // Announce Keys Inherited from Successor
-        System.out.println("Keys Inherited From Successor");
-        System.out.println("Updated Map: "+ map);
+        if (!keysToRemove.isEmpty()){
+            // Remove the transferred keys from the successorMap
+            for (String keyToRemove : keysToRemove) {
+                successorMap.remove(keyToRemove);
+            }
+
+            // Update the successor's map with the remaining keys
+            sendMapPutRequest(port, successorMap);
+
+            // Announce Keys Inherited from Successor
+            System.out.println("Keys Inherited From Successor");
+            System.out.println("Updated Map: " + map);
+        }
+
     }
+
+
 
     public void registerWithDHT(int port) throws InterruptedException, KeeperException, IOException {
         // Register node with zookeeper
@@ -552,7 +607,7 @@ public class DistributedHashTable {
         System.out.println("Get & Put Requests accessed at: " + (port + 10));
 
         // Inherit elegible keys from successor
-        if (zooKeeperClient.getSortedChildren(DHT).size() > 1){
+        if (zooKeeperClient.getSortedChildren(DHT).size() > 1) {
             claimSuccessorKeys(currentZnode);
         }
     }
