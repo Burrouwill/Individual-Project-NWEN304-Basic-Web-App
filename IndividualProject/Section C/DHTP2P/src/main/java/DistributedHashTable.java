@@ -30,7 +30,7 @@ public class DistributedHashTable {
     private int port;
     private Map<String, String> map;
 
-    public DistributedHashTable(ZookeeperClient zooKeeperClient, int port) throws InterruptedException, KeeperException {
+    public DistributedHashTable(ZookeeperClient zooKeeperClient, int port) throws InterruptedException, KeeperException, IOException {
         this.zooKeeperClient = zooKeeperClient;
         this.port = port;
         this.map = new HashMap<>();
@@ -74,7 +74,9 @@ public class DistributedHashTable {
                 } else if ("/getMap".equals(target)) {
                     // Handle MAP request
                     handleMapRequest(request, response);
-                } else {
+                } else if ("/updateMap".equals(target)) {
+                    handleUpdateMapRequest(request, response);
+                }else {
                     response.setStatus(HttpServletResponse.SC_NOT_FOUND);
                 }
                 request.setHandled(true);
@@ -295,6 +297,73 @@ public class DistributedHashTable {
 
         return resultMap;
     }
+
+    // ===============================================
+    //              UPDATE MAP REQUEST HANDLING
+    // ===============================================
+    private void handleUpdateMapRequest(HttpServletRequest request, HttpServletResponse response) throws IOException {
+        if ("PUT".equals(request.getMethod())) {
+            try {
+                ObjectMapper objectMapper = new ObjectMapper();
+                Map<String, String> newMap = objectMapper.readValue(request.getInputStream(), new TypeReference<Map<String, String>>() {});
+
+                map = newMap;
+
+                // Announce Keys Updated at Successor Node
+                System.out.println("Keys Updated");
+                System.out.println("Updated Map: "+ map);
+
+                response.setContentType("text/plain;charset=utf-8");
+                response.setStatus(HttpServletResponse.SC_OK);
+                response.getWriter().println("Map updated successfully");
+            } catch (IOException e) {
+                e.printStackTrace();
+                response.setContentType("text/plain;charset=utf-8");
+                response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                response.getWriter().println("Error updating map");
+            }
+        } else {
+            response.setContentType("text/plain;charset=utf-8");
+            response.setStatus(HttpServletResponse.SC_METHOD_NOT_ALLOWED);
+            response.getWriter().println("Method not allowed");
+        }
+    }
+
+    public void sendMapPutRequest(int targetPort, Map<String, String> mapToSend) throws IOException {
+        try {
+            URL url = new URL("http://localhost:" + targetPort + "/updateMap");
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+
+            // Set request method to PUT
+            connection.setRequestMethod("PUT");
+            connection.setRequestProperty("Content-Type", "application/json");
+            connection.setDoOutput(true);
+
+            // Convert the map to JSON format
+            ObjectMapper objectMapper = new ObjectMapper();
+            String jsonData = objectMapper.writeValueAsString(mapToSend);
+
+            // Write JSON data to the request body
+            try (OutputStream os = connection.getOutputStream()) {
+                byte[] input = jsonData.getBytes("utf-8");
+                os.write(input, 0, input.length);
+            }
+
+            // Get response from the PUT request
+            int responseCode = connection.getResponseCode();
+            String responseMessage = connection.getResponseMessage();
+
+            connection.disconnect();
+
+            System.out.println("Response Code: " + responseCode);
+            System.out.println("Response Message: " + responseMessage);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            System.out.println("Error sending PUT request: " + e.getMessage());
+        }
+    }
+
     /**
      * Gets the port number out of a given zNode
      *
@@ -419,7 +488,9 @@ public class DistributedHashTable {
         String successorNode = findRightAdjacentNode(newZnode);
 
         // Find the port no of the adjacent node
-        int port = getPortFromZnode(successorNode);
+        String successorNodePath = DHT + "/" + successorNode;
+        int port = getPortFromZnode(successorNodePath)+10;
+        System.out.println(port);
         // Retive the map from said node via the /getMap end point
         Map<String,String> successorMap = sendMapRequest(port);
 
@@ -432,15 +503,26 @@ public class DistributedHashTable {
             }
         }
 
+        // Update Keys of Successor Node
+        Map<String,String> testMap = Map.of("I","am","a","test");
+        sendMapPutRequest(port,testMap);
 
     }
 
-    public void registerWithDHT(int port) throws InterruptedException, KeeperException {
+    public void registerWithDHT(int port) throws InterruptedException, KeeperException, IOException {
         String znodePath = zooKeeperClient.createEphemeralSequentialNode(DHT + "/", generateZnodeData(NetworkUtils.getIpAddress(), port));
         currentZnode = znodePath.replace(DHT + "/", "");
 
         System.out.println("Registered to DHT with Hash: " + hash(currentZnode) + " (Znode ID: " + currentZnode + ")");
         System.out.println("Get & Put Requests accessed at: " + (port + 10));
+
+
+        if (zooKeeperClient.getSortedChildren(DHT).size() > 1){
+            claimSuccessorKeys(currentZnode);
+        }
+
+
+
     }
 
     /**

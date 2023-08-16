@@ -1,5 +1,5 @@
-Notes:
-- You can view the response in console using: $response
+    Notes:
+    - You can view the response in console using: $response
 
 # GET
 
@@ -47,7 +47,7 @@ $response
 
 
 
-# MAP
+# GET MAP
 
     $uri = "http://localhost:8090/getMap" 
     $response = Invoke-RestMethod -Uri $uri -Method Get
@@ -58,3 +58,23 @@ $response
 
 
 # UPDATE MAP
+
+    # Define the URL
+    $uri = "http://localhost:8090/updateMap"
+
+    # Define the new map data
+    $newMap = @{
+        "key1" = "value1"
+        "key2" = "value2"
+        "key3" = "value3"
+        # Add more key-value pairs as needed
+    }
+
+    # Convert the new map to JSON
+    $jsonData = $newMap | ConvertTo-Json
+
+    # Send the PUT request
+    $response = Invoke-RestMethod -Uri $uri -Method Put -ContentType "application/json" -Body $jsonData
+
+    # Print the response
+    $response
