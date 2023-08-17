@@ -1,4 +1,4 @@
-public class Application {
+public class ApplicationC {
     private static final String ZOOKEEPER_ADDRESS = "localhost:2181";
     private static final int SESSION_TIMEOUT = 3000;
     private static final int DEFAULT_PORT = 8080;
@@ -8,12 +8,12 @@ public class Application {
         try {
             int currentServerPort = args.length == 1 ? Integer.parseInt(args[0]) : DEFAULT_PORT;
 
-            ZookeeperClient zooKeeperClient = new ZookeeperClient(ZOOKEEPER_ADDRESS, SESSION_TIMEOUT);
+            ZookeeperClientC zooKeeperClientC = new ZookeeperClientC(ZOOKEEPER_ADDRESS, SESSION_TIMEOUT);
 
-            DistributedHashTable distributedHashTable = new DistributedHashTable(zooKeeperClient, currentServerPort);
+            DistributedHashTable distributedHashTable = new DistributedHashTable(zooKeeperClientC, currentServerPort);
 
-            zooKeeperClient.run();
-            zooKeeperClient.close();
+            zooKeeperClientC.run();
+            zooKeeperClientC.close();
             System.out.println("Disconnected from Zookeeper, exiting application");
         } catch (Exception ex) {
             System.out.println(ex.toString());

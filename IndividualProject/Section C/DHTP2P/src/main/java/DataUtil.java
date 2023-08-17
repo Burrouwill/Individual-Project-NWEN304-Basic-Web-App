@@ -1,22 +1,19 @@
-import java.util.HashMap;
-import java.util.Map;
-
 /**
- * Data objects store the data that each ZNode needs to have:
+ * DataUtil objects store the data that each ZNode needs to have:
  *  - IpAddress
  *  - Port number
  *  (The id of the znode is generated from the byte array of this data during znode creation)
  */
-public class Data {
+public class DataUtil {
     private String ipAddress;
     private int port;
 
     // Default Constructor for Jackson
-    public Data(){
+    public DataUtil(){
 
     }
 
-    public Data(String ipAddress, int port) {
+    public DataUtil(String ipAddress, int port) {
         this.ipAddress = ipAddress;
         this.port = port;
     }
@@ -39,7 +36,7 @@ public class Data {
 
     @Override
     public String toString() {
-        return "Data{" +
+        return "DataUtil{" +
                 "ipAddress='" + ipAddress + '\'' +
                 ", port=" + port +
                 '}';

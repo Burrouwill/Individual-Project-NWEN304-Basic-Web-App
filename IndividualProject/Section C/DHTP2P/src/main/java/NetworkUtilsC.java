@@ -2,7 +2,7 @@
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
-public class NetworkUtils {
+public class NetworkUtilsC {
 
     public static String getIpAddress() {
         try {

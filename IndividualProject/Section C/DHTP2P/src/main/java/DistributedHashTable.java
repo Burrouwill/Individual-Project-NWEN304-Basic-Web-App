@@ -22,7 +22,7 @@ import java.net.URL;
 
 public class DistributedHashTable {
     private static final String DHT = "/DHT";
-    private final ZookeeperClient zooKeeperClient;
+    private final ZookeeperClientC zooKeeperClientC;
     private String currentZnode = null;
 
     // Fields for the Node
@@ -31,8 +31,8 @@ public class DistributedHashTable {
     private int port;
     private Map<String, String> map;
 
-    public DistributedHashTable(ZookeeperClient zooKeeperClient, int port) throws InterruptedException, KeeperException, IOException {
-        this.zooKeeperClient = zooKeeperClient;
+    public DistributedHashTable(ZookeeperClientC zooKeeperClientC, int port) throws InterruptedException, KeeperException, IOException {
+        this.zooKeeperClientC = zooKeeperClientC;
         this.port = port;
         this.map = new HashMap<>();
 
@@ -199,9 +199,9 @@ public class DistributedHashTable {
         map.put(key, value);
         System.out.println("New Key added");
         System.out.println("Key: " + key + " (Hash: " + hash(key) + ")");
-        System.out.println("Data saved to Znode ID: " + currentZnode + " (Hash:" + hash(currentZnode) + ")");
+        System.out.println("DataUtil saved to Znode ID: " + currentZnode + " (Hash:" + hash(currentZnode) + ")");
         int portActive = port + 10;
-        return "Data saved to node: " + currentZnode + " at port:" + portActive + " (Znode at: " + port + ")";
+        return "DataUtil saved to node: " + currentZnode + " at port:" + portActive + " (Znode at: " + port + ")";
     }
 
     private String forwardPutRequest(String key, String value) throws InterruptedException, KeeperException {
@@ -214,7 +214,7 @@ public class DistributedHashTable {
 
         // Display forwarding message on current node
         System.out.println("Hashed Key: " + hash(key));
-        System.out.println("* Forwarding Put request to node: " + correctNodeId + " (Hashed Node: " + hash(correctNodeId) + ")" + " *");
+        System.out.println("* Forwarding Put request to Znode: " + correctNodeId + " (Hashed Node: " + hash(correctNodeId) + ")" + " *");
 
         return "* Forwarding Put request to node: " + correctNodeId + "*";
     }
@@ -391,9 +391,9 @@ public class DistributedHashTable {
      * @throws KeeperException
      */
     public int getPortFromZnode(String znodePath) throws InterruptedException, KeeperException {
-        byte[] dataBytes = zooKeeperClient.getZookeeper().getData(znodePath, false, null);
-        Data data = convertBytesToData(dataBytes);
-        return data.getPort();
+        byte[] dataBytes = zooKeeperClientC.getZookeeper().getData(znodePath, false, null);
+        DataUtil dataUtil = convertBytesToData(dataBytes);
+        return dataUtil.getPort();
     }
 
     /**
@@ -432,7 +432,7 @@ public class DistributedHashTable {
         int keyHash = hash(key);
 
         // Find the correct node
-        List<String> nodes = zooKeeperClient.getSortedChildren(DHT);
+        List<String> nodes = zooKeeperClientC.getSortedChildren(DHT);
 
         String correctNode = null;
         int bestHashDiff = Integer.MAX_VALUE;
@@ -464,7 +464,7 @@ public class DistributedHashTable {
         int newNodeHash = hash(newNodeId);
 
         // Get all nodes in DHT
-        List<String> nodes = zooKeeperClient.getZookeeper().getChildren(DHT, false);
+        List<String> nodes = zooKeeperClientC.getZookeeper().getChildren(DHT, false);
         // Remove new nodeId to prevent finding its self / the newly created node
         nodes.remove(newNodeId);
 
@@ -502,7 +502,7 @@ public class DistributedHashTable {
     public String getPredcessor(String newNodeId) throws InterruptedException, KeeperException {
         int newNodeHash = hash(newNodeId);
 
-        List<String> nodes = zooKeeperClient.getZookeeper().getChildren(DHT, false);
+        List<String> nodes = zooKeeperClientC.getZookeeper().getChildren(DHT, false);
         nodes.remove(newNodeId);
 
         String adjacentNode = null;
@@ -543,8 +543,8 @@ public class DistributedHashTable {
         // Get the predecessor node (Anticlockwise) on DHT
         String predecessorNode = getPredcessor(newZnode);
 
-        System.out.println("Predcessor: " + hash(predecessorNode));
-        System.out.println("Successor: " + hash(successorNode));
+        //System.out.println("Predcessor: " + hash(predecessorNode)); ---> TO BE USED FOR DEMO?
+        //System.out.println("Successor: " + hash(successorNode));
 
         // Find the port no of the adjacent node
         String successorNodePath = DHT + "/" + successorNode;
@@ -600,47 +600,47 @@ public class DistributedHashTable {
 
     public void registerWithDHT(int port) throws InterruptedException, KeeperException, IOException {
         // Register node with zookeeper
-        String znodePath = zooKeeperClient.createEphemeralSequentialNode(DHT + "/", generateZnodeData(NetworkUtils.getIpAddress(), port));
+        String znodePath = zooKeeperClientC.createEphemeralSequentialNode(DHT + "/", generateZnodeData(NetworkUtilsC.getIpAddress(), port));
         currentZnode = znodePath.replace(DHT + "/", "");
 
         System.out.println("Registered to DHT with Hash: " + hash(currentZnode) + " (Znode ID: " + currentZnode + ")");
         System.out.println("Get & Put Requests accessed at: " + (port + 10));
 
         // Inherit elegible keys from successor
-        if (zooKeeperClient.getSortedChildren(DHT).size() > 1) {
+        if (zooKeeperClientC.getSortedChildren(DHT).size() > 1) {
             claimSuccessorKeys(currentZnode);
         }
     }
 
     /**
-     * Converts Data object --> Byte array to be passed as arg to Znode
+     * Converts DataUtil object --> Byte array to be passed as arg to Znode
      *
      * @param ipAddress
      * @param port
      * @return
      */
     public byte[] generateZnodeData(String ipAddress, int port) {
-        // Create a Data object with IP address and port
-        Data data = new Data(ipAddress, port);
+        // Create a DataUtil object with IP address and port
+        DataUtil dataUtil = new DataUtil(ipAddress, port);
 
-        // Convert Data object to bytes
-        byte[] dataBytes = convertDataToBytes(data);
+        // Convert DataUtil object to bytes
+        byte[] dataBytes = convertDataToBytes(dataUtil);
 
         return dataBytes;
     }
 
     /**
-     * Converts byte data from Znode --> Data object
+     * Converts byte data from Znode --> DataUtil object
      *
      * @param dataBytes
      * @return
      */
-    public Data convertBytesToData(byte[] dataBytes) {
+    public DataUtil convertBytesToData(byte[] dataBytes) {
         ObjectMapper objectMapper = new ObjectMapper();
         try {
             String jsonData = new String(dataBytes);
-            Data data = objectMapper.readValue(jsonData, Data.class);
-            return data;
+            DataUtil dataUtil = objectMapper.readValue(jsonData, DataUtil.class);
+            return dataUtil;
         } catch (Exception e) {
             e.printStackTrace();
             return null;
@@ -648,15 +648,15 @@ public class DistributedHashTable {
     }
 
     /**
-     * Converts a Data obj to byte array
+     * Converts a DataUtil obj to byte array
      *
-     * @param data
+     * @param dataUtil
      * @return
      */
-    public byte[] convertDataToBytes(Data data) {
+    public byte[] convertDataToBytes(DataUtil dataUtil) {
         try {
             ObjectMapper objectMapper = new ObjectMapper();
-            String jsonData = objectMapper.writeValueAsString(data);
+            String jsonData = objectMapper.writeValueAsString(dataUtil);
             byte[] dataBytes = jsonData.getBytes();
             return dataBytes;
         } catch (Exception e) {
@@ -670,7 +670,7 @@ public class DistributedHashTable {
      */
     private void createDHTPZnode() {
         try {
-            zooKeeperClient.createPersistantNode(DHT, null);
+            zooKeeperClientC.createPersistantNode(DHT, null);
         } catch (KeeperException | InterruptedException e) {
         }
     }

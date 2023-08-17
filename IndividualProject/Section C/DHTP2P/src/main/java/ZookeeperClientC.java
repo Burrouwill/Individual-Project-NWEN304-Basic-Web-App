@@ -4,11 +4,11 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
-public class ZookeeperClient implements Watcher {
+public class ZookeeperClientC implements Watcher {
     private final ZooKeeper zookeeper;
     private static final String DHT = "/DHT";
 
-    public ZookeeperClient(String connectionString, int sessionTimeout) throws IOException {
+    public ZookeeperClientC(String connectionString, int sessionTimeout) throws IOException {
         this.zookeeper = new ZooKeeper(connectionString, sessionTimeout, this);
     }
 
